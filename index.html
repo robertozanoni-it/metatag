@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Analizzatore Meta Tag SEO PRO</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Dependencies (UMD Global Scripts) -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+        scroll-behavior: smooth;
+      }
+      .recharts-wrapper {
+        outline: none !important;
+      }
+      .recharts-surface {
+        outline: none !important;
+      }
+      @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+      }
+      .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
+      
+      @keyframes fadeInFast {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+      }
+      .animate-fade-in-fast { animation: fadeInFast 0.3s ease-in-out; }
+
+      .line-clamp-2 {
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;  
+        overflow: hidden;
+      }
+      .line-clamp-3 {
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;  
+        overflow: hidden;
+      }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="react">
+    
+        // --- SETUP DEPENDENCIES ---
+        const { useState, useCallback, useEffect, StrictMode } = React;
+        const { createRoot } = ReactDOM;
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } = Recharts;
+
+        // --- INLINED CODE FROM ALL FILES ---
+
+        // constants.ts
+        const CHECKLIST_ITEMS = [
+            { title: 'Title Tag Ottimizzato', description: 'Il title ha tra 50-60 caratteri e include keyword principali' },
+            { title: 'Meta Description Completa', description: 'Description tra 150-160 caratteri, attraente e con CTA' },
+            { title: 'URL SEO-Friendly', description: 'URL brevi, descrittivi e con keyword separate da trattini' },
+            { title: 'Tag H1 Unico', description: 'Una sola H1 per pagina che include keyword principale' },
+            { title: 'Tag Canonical Presente', description: 'Previene problemi di contenuto duplicato' },
+            { title: 'Viewport Meta Tag', description: 'Essenziale per responsive design e mobile SEO' },
+            { title: 'Open Graph Tags', description: 'Ottimizza la condivisione su Facebook, LinkedIn, etc.' },
+            { title: 'Twitter Card Tags', description: 'Migliora la condivisione su Twitter / X' },
+            { title: 'Structured Data (Schema.org)', description: 'Implementato per rich snippet (es. Article, Product)' },
+            { title: 'Favicon Presente', description: 'Icona del sito visibile nei browser' },
+            { title: 'HTTPS Attivo', description: 'Certificato SSL installato e funzionante' },
+            { title: 'Velocità Pagina Ottimizzata', description: 'Punteggio PageSpeed Insights > 85' },
+            { title: 'Immagini Ottimizzate', description: 'Formati moderni (WebP), dimensioni corrette, lazy loading' },
+            { title: 'Alt Text Immagini', description: 'Tutte le immagini hanno alt text descrittivo' },
+            { title: 'Link Interni Strategici', description: 'Almeno 3-5 link interni rilevanti per pagina' },
+            { title: 'Contenuto Unico e Originale', description: 'Nessun contenuto duplicato sul sito o esternamente' },
+            { title: 'Mobile-Friendly Design', description: 'Supera il test di ottimizzazione mobile di Google' },
+        ];
+
+        // hooks/useLocalStorage.ts
+        function useLocalStorage(key, initialValue) {
+            const [value, setValue] = useState(() => {
+                try {
+                    const savedValue = localStorage.getItem(key);
+                    if (savedValue !== null) {
+                        return JSON.parse(savedValue);
+                    }
+                    return initialValue instanceof Function ? initialValue() : initialValue;
+                } catch {
+                    return initialValue instanceof Function ? initialValue() : initialValue;
+                }
+            });
+
+            useEffect(() => {
+                try {
+                    localStorage.setItem(key, JSON.stringify(value));
+                } catch (error) {
+                    console.error("Could not save to local storage", error);
+                }
+            }, [value, key]);
+
+            return [value, setValue];
+        }
+
+        // services/analysisService.ts
+        function analyzeSecurityBasics(url) {
+            if (!url) {
+                return { https: false, protocol: 'N/A' };
+            }
+            try {
+                const urlObj = new URL(url);
+                return { https: urlObj.protocol === 'https:', protocol: urlObj.protocol };
+            } catch (e) {
+                return { https: false, protocol: 'N/A' };
+            }
+        }
+
+        function performFullAnalysis(url, html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const metaTags = extractMetaTags(doc);
+            
+            const analysis = {
+                url: url,
+                timestamp: new Date().toISOString(),
+                html: html,
+                metaTags: metaTags,
+                structuredData: extractStructuredData(doc),
+                keywords: [],
+                allKeywords: [],
+                favicon: extractFavicon(doc, url),
+                security: analyzeSecurityBasics(metaTags.canonical), // Use canonical URL for security check
+                scores: { overall: 0, title: 0, description: 0, technical: 0, social: 0 },
+                recommendations: [],
+            };
+            
+            const keywordAnalysis = analyzeKeywords(doc);
+            analysis.keywords = keywordAnalysis.keywords;
+            analysis.allKeywords = keywordAnalysis.allKeywords;
+
+            analysis.scores = calculateScores(analysis);
+            analysis.recommendations = generateRecommendations(analysis);
+            analysis.readability = analyzeReadability(analysis.metaTags.title, analysis.metaTags.description);
+            analysis.sentiment = analyzeSentiment(analysis.metaTags.title, analysis.metaTags.description);
+            
+            return analysis;
+        }
+
+        function extractMetaTags(doc) {
+            const meta = {
+                title: doc.querySelector('title')?.textContent.trim() || '',
+                description: '', keywords: '', robots: '', canonical: '', viewport: '',
+                charset: '', language: '', author: '', ogTitle: '', ogDescription: '',
+                ogImage: '', ogUrl: '', ogType: '', twitterCard: '', twitterTitle: '',
+                twitterDescription: '', twitterImage: '', allMeta: []
+            };
+
+            doc.querySelectorAll('meta').forEach(tag => {
+                const name = tag.getAttribute('name') || tag.getAttribute('property') || '';
+                const content = tag.getAttribute('content') || '';
+                if (name) meta.allMeta.push({ name, content });
+
+                switch (name) {
+                    case 'description': meta.description = content; break;
+                    case 'keywords': meta.keywords = content; break;
+                    case 'robots': meta.robots = content; break;
+                    case 'viewport': meta.viewport = content; break;
+                    case 'author': meta.author = content; break;
+                    case 'og:title': meta.ogTitle = content; break;
+                    case 'og:description': meta.ogDescription = content; break;
+                    case 'og:image': meta.ogImage = content; break;
+                    case 'og:url': meta.ogUrl = content; break;
+                    case 'og:type': meta.ogType = content; break;
+                    case 'twitter:card': meta.twitterCard = content; break;
+                    case 'twitter:title': meta.twitterTitle = content; break;
+                    case 'twitter:description': meta.twitterDescription = content; break;
+                    case 'twitter:image': meta.twitterImage = content; break;
+                }
+            });
+
+            meta.charset = doc.querySelector('meta[charset]')?.getAttribute('charset') || doc.characterSet || '';
+            meta.canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href') || '';
+            meta.language = doc.documentElement.getAttribute('lang') || '';
+
+            return meta;
+        }
+        
+        function extractStructuredData(doc) {
+            const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
+            const data = [];
+            scripts.forEach(script => {
+                try {
+                    if (script.textContent) {
+                        const parsed = JSON.parse(script.textContent);
+                        if(Array.isArray(parsed)) {
+                            data.push(...parsed);
+                        } else {
+                            data.push(parsed);
+                        }
+                    }
+                } catch (e) {
+                    console.warn("Failed to parse structured data JSON", e);
+                }
+            });
+            return data;
+        }
+
+        function analyzeKeywords(doc) {
+            const title = doc.querySelector('title')?.textContent || '';
+            const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') || '';
+            const bodyText = doc.body?.textContent.substring(0, 5000) || '';
+            const text = `${title} ${description} ${bodyText}`;
+
+            const stopWords = ['e', 'di', 'a', 'da', 'in', 'con', 'su', 'per', 'tra', 'fra', 'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'che', 'ed', 'del', 'della', 'dei', 'delle', 'al', 'alla', 'ai', 'alle', 'nel', 'nella', 'nei', 'nelle', 'the', 'and', 'a', 'to', 'of', 'in', 'for', 'is', 'on', 'with'];
+            const words = text.toLowerCase().match(/\b(\w{4,})\b/g) || [];
+            
+            const filteredWords = words.filter(word => !stopWords.includes(word));
+            
+            const frequency = {};
+            filteredWords.forEach(word => {
+                frequency[word] = (frequency[word] || 0) + 1;
+            });
+            
+            const sortedKeywords = Object.keys(frequency)
+                .sort((a, b) => frequency[b] - frequency[a])
+                .slice(0, 20)
+                .map(word => ({ word, count: frequency[word] }));
+
+            return { keywords: sortedKeywords, allKeywords: Object.keys(frequency) };
+        }
+
+        function extractFavicon(doc, pageUrl) {
+            const favicon = { standard: '', appleTouchIcon: '', sizes: [] };
+            
+            doc.querySelectorAll('link[rel*="icon"]').forEach(link => {
+                const rel = link.getAttribute('rel') || '';
+                const href = link.getAttribute('href');
+                if (!href) return;
+
+                if (rel.includes('apple-touch-icon')) {
+                    favicon.appleTouchIcon = href;
+                } else if (rel.includes('icon')) {
+                    favicon.standard = href;
+                }
+                const sizes = link.getAttribute('sizes');
+                if (sizes) favicon.sizes.push(sizes);
+            });
+            
+            if(!favicon.standard) {
+                favicon.standard = '/favicon.ico';
+            }
+
+            return favicon;
+        }
+
+        function calculateScores(analysis) {
+            const scores = { overall: 0, title: 0, description: 0, technical: 0, social: 0 };
+            const { metaTags, security } = analysis;
+
+            scores.title = metaTags.title ? (metaTags.title.length >= 30 && metaTags.title.length <= 70 ? 100 : 60) : 0;
+            scores.description = metaTags.description ? (metaTags.description.length >= 120 && metaTags.description.length <= 160 ? 100 : 60) : 0;
+            
+            let techScore = 0;
+            if (metaTags.canonical) techScore += 25;
+            if (metaTags.robots ? !metaTags.robots.includes('noindex') : true) techScore += 25;
+            if (metaTags.viewport) techScore += 25;
+            if (security.https) techScore += 25;
+            scores.technical = techScore;
+            
+            let socialScore = 0;
+            if (metaTags.ogTitle) socialScore += 25;
+            if (metaTags.ogDescription) socialScore += 25;
+            if (metaTags.ogImage) socialScore += 25;
+            if (metaTags.twitterCard) socialScore += 25;
+            scores.social = socialScore;
+            
+            scores.overall = Math.round((scores.title + scores.description + scores.technical + scores.social) / 4);
+            
+            return scores;
+        }
+
+        function generateRecommendations(analysis) {
+            const recs = [];
+            const { metaTags, security, structuredData } = analysis;
+
+            if (!metaTags.title) recs.push({ type: 'error', category: 'title', message: 'Il tag title è mancante. È fondamentale per la SEO!' });
+            else if (metaTags.title.length < 30) recs.push({ type: 'warning', category: 'title', message: `Il title è troppo corto (${metaTags.title.length} caratteri). Consigliato: 50-60.` });
+            else if (metaTags.title.length > 70) recs.push({ type: 'warning', category: 'title', message: `Il title è troppo lungo (${metaTags.title.length} caratteri). Sarà troncato.` });
+            else recs.push({ type: 'success', category: 'title', message: `Title ottimale (${metaTags.title.length} caratteri).` });
+
+            if (!metaTags.description) recs.push({ type: 'error', category: 'description', message: 'La meta description è mancante!' });
+            else if (metaTags.description.length < 120) recs.push({ type: 'warning', category: 'description', message: `Description troppo corta (${metaTags.description.length} caratteri). Consigliato: 150-160.` });
+            else if (metaTags.description.length > 160) recs.push({ type: 'warning', category: 'description', message: `Description troppo lunga (${metaTags.description.length} caratteri).` });
+            else recs.push({ type: 'success', category: 'description', message: `Description ottimale (${metaTags.description.length} caratteri).` });
+            
+            if (!metaTags.canonical) recs.push({ type: 'warning', category: 'technical', message: 'Manca il tag canonical. Utile per evitare contenuti duplicati.' });
+            if (!metaTags.viewport) recs.push({ type: 'error', category: 'technical', message: 'Manca il tag viewport. Critico per la visualizzazione su mobile.' });
+            if (!security.https) recs.push({ type: 'warning', category: 'technical', message: 'Impossibile verificare HTTPS. Assicurati che il sito lo usi.' });
+            
+            if (!metaTags.ogTitle || !metaTags.ogDescription || !metaTags.ogImage) recs.push({ type: 'warning', category: 'social', message: 'Mancano tag Open Graph (titolo, descrizione, immagine). Importanti per la condivisione sui social.' });
+            if (!metaTags.twitterCard) recs.push({ type: 'warning', category: 'social', message: 'Manca la Twitter Card. Migliora la condivisione su Twitter/X.' });
+
+            if (structuredData.length === 0) recs.push({ type: 'warning', category: 'structured', message: 'Nessuno structured data (Schema.org) trovato. I rich snippets migliorano il CTR.' });
+            else recs.push({ type: 'success', category: 'structured', message: `Trovati ${structuredData.length} blocchi di structured data.` });
+
+            return recs;
+        }
+        
+        function countSyllables(text) {
+            const words = text.toLowerCase().split(/\s+/);
+            let totalSyllables = 0;
+            words.forEach(word => {
+                word = word.replace(/[^a-zàèéìòù]/g, '');
+                if (word.length === 0) return;
+                const vowels = word.match(/[aeiouyàèéìòù]+/g);
+                let syllables = vowels ? vowels.length : 1;
+                if (word.endsWith('e') && syllables > 1) syllables--;
+                totalSyllables += Math.max(1, syllables);
+            });
+            return totalSyllables;
+        }
+
+        function analyzeReadability(title, description) {
+            const fullText = `${title} ${description}`.trim();
+            if (!fullText) return { fleschScore: 0, gradeLevel: 0, difficulty: 'N/D', audience: 'N/D', color: '#6b7280', wordCount: 0, avgWordLength: 0, sentenceCount: 0, avgWordsPerSentence: 0 };
+
+            const sentences = (fullText.match(/[.!?]+/g) || []).length || 1;
+            const words = (fullText.match(/\S+/g) || []).length;
+            const syllables = countSyllables(fullText);
+
+            if (words === 0) return { fleschScore: 0, gradeLevel: 0, difficulty: 'N/D', audience: 'N/D', color: '#6b7280', wordCount: 0, avgWordLength: 0, sentenceCount: 0, avgWordsPerSentence: 0 };
+            
+            const fleschScore = Math.round(Math.max(0, Math.min(100, 206.835 - 1.015 * (words / sentences) - 84.6 * (syllables / words))));
+            const gradeLevel = Math.round(Math.max(0, 0.39 * (words / sentences) + 11.8 * (syllables / words) - 15.59) * 10) / 10;
+            
+            let difficulty, audience, color;
+            if (fleschScore >= 90) { difficulty = 'Molto Facile'; audience = 'Comprensibile da bambini di 11 anni'; color = '#10b981'; }
+            else if (fleschScore >= 80) { difficulty = 'Facile'; audience = 'Studenti scuola media'; color = '#3b82f6'; }
+            else if (fleschScore >= 60) { difficulty = 'Standard'; audience = 'Adulti con istruzione media'; color = '#f59e0b'; }
+            else { difficulty = 'Difficile'; audience = 'Istruzione avanzata'; color = '#ef4444'; }
+            
+            return {
+                fleschScore, gradeLevel, difficulty, audience, color,
+                wordCount: words,
+                avgWordLength: Math.round((fullText.replace(/\s/g, '').length / words) * 10) / 10,
+                sentenceCount: sentences,
+                avgWordsPerSentence: Math.round((words / sentences) * 10) / 10,
+            };
+        }
+
+        function analyzeSentiment(title, description) {
+            const positiveWords = ['ottimo', 'eccellente', 'fantastico', 'migliore', 'gratis', 'garantito', 'facile', 'veloce', 'nuovo', 'esclusivo'];
+            const negativeWords = ['difficile', 'problema', 'errore', 'lento', 'costoso'];
+            const text = `${title} ${description}`.toLowerCase();
+            
+            const positiveCount = positiveWords.filter(w => text.includes(w)).length;
+            const negativeCount = negativeWords.filter(w => text.includes(w)).length;
+
+            let score = 0;
+            if(positiveCount + negativeCount > 0) {
+              score = (positiveCount - negativeCount) / (positiveCount + negativeCount);
+            }
+            
+            let label, color;
+            if (score > 0.3) { label = 'Molto Positivo'; color = '#10b981'; }
+            else if (score > 0) { label = 'Positivo'; color = '#3b82f6'; }
+            else if (score === 0) { label = 'Neutro'; color = '#6b7280'; }
+            else { label = 'Negativo'; color = '#ef4444'; }
+
+            return { score, label, color, positiveCount, negativeCount, triggers: [] };
+        }
+
+        function analyzeKeywordCompetition(currentAnalysis, history) {
+            const currentKeywords = currentAnalysis.allKeywords;
+            const competitorKeywordsList = history
+                .filter(item => item.url !== currentAnalysis.url)
+                .map(item => item.data.allKeywords);
+
+            const competitorFreq = {};
+            competitorKeywordsList.forEach(kwList => {
+                new Set(kwList).forEach(kw => {
+                    competitorFreq[kw] = (competitorFreq[kw] || 0) + 1;
+                });
+            });
+
+            const result = { unique: [], shared: [], competitive: [] };
+            
+            new Set(currentKeywords).forEach(kw => {
+                const count = competitorFreq[kw] || 0;
+                if (count === 0) {
+                    result.unique.push({ keyword: kw, score: 100 });
+                } else if (count <= 2) {
+                    result.shared.push({ keyword: kw, competitorCount: count });
+                } else {
+                    result.competitive.push({ keyword: kw, competitorCount: count });
+                }
+            });
+            
+            return result;
+        }
+
+        function calculateStringSimilarity(str1, str2) {
+            const words1 = new Set(str1.toLowerCase().split(/\s+/));
+            const words2 = new Set(str2.toLowerCase().split(/\s+/));
+            const intersection = new Set([...words1].filter(x => words2.has(x)));
+            const union = new Set([...words1, ...words2]);
+            if (union.size === 0) return 0;
+            return Math.round((intersection.size / union.size) * 100);
+        }
+
+        function detectDuplicates(currentAnalysis, history) {
+            const duplicates = [];
+            const { url, metaTags } = currentAnalysis;
+            const currentTitle = metaTags.title;
+            const currentDesc = metaTags.description;
+
+            history.forEach(item => {
+                if (item.url === url) return;
+
+                const otherTitle = item.data.metaTags.title;
+                const otherDesc = item.data.metaTags.description;
+
+                if (currentTitle && otherTitle) {
+                    const similarity = calculateStringSimilarity(currentTitle, otherTitle);
+                    if (similarity > 80) {
+                        duplicates.push({ url: item.url, type: `Title ${similarity === 100 ? 'Identico' : 'Simile'}`, similarity });
+                    }
+                }
+                
+                if (currentDesc && otherDesc) {
+                    const similarity = calculateStringSimilarity(currentDesc, otherDesc);
+                    if (similarity > 80) {
+                        duplicates.push({ url: item.url, type: `Description ${similarity === 100 ? 'Identica' : 'Simile'}`, similarity });
+                    }
+                }
+            });
+
+            return { hasDuplicates: duplicates.length > 0, duplicates };
+        }
+
+        // --- COMPONENTS ---
+
+        const Header = () => {
+          return (
+            <header className="text-center mb-8 bg-black text-white p-8 rounded-2xl shadow-2xl">
+              <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
+                🚀 Analizzatore Meta Tag SEO PRO
+              </h1>
+              <p className="text-sm md:text-base text-white/90 leading-relaxed max-w-3xl mx-auto">
+                Suite completa per analizzare, monitorare e ottimizzare i meta tag del tuo sito. 
+                Include anteprima SERP, social preview, analisi storica, grafici, export PDF e molto altro!
+              </p>
+            </header>
+          );
+        };
+
+        const InputSection = ({ htmlContent, setHtmlContent, handleAnalyze, isLoading, setActiveView }) => {
+          return (
+            <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-7 mb-6 shadow-sm">
+              <label htmlFor="html-input" className="block text-base font-semibold text-gray-900 mb-2">
+                📄 Incolla qui il codice HTML della pagina
+              </label>
+              <div className="flex flex-col gap-3 mb-4">
+                <textarea
+                  id="html-input"
+                  value={htmlContent}
+                  onChange={(e) => setHtmlContent(e.target.value)}
+                  className="w-full h-40 px-4 py-3 text-base border-2 border-gray-300 rounded-lg outline-none transition-all duration-200 bg-white text-gray-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 font-mono text-sm"
+                  placeholder="<!DOCTYPE html>..."
+                  aria-label="Codice sorgente HTML"
+                  disabled={isLoading}
+                />
+                <button
+                  onClick={handleAnalyze}
+                  disabled={isLoading}
+                  className="w-full sm:w-auto px-8 py-3 text-base font-semibold text-white bg-blue-600 border-none rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-blue-700 active:scale-95 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
+                >
+                  {isLoading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Analisi...
+                    </>
+                  ) : (
+                    '🚀 Analizza HTML'
+                  )}
+                </button>
+              </div>
+              <div className="flex gap-2 sm:gap-3 flex-wrap">
+                <button onClick={() => setActiveView('history')} className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg transition hover:bg-teal-700">
+                  📊 Storico Analisi
+                </button>
+                <button onClick={() => setActiveView('multi-page')} className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg transition hover:bg-teal-700">
+                  📑 Analisi Multi-Pagina
+                </button>
+                <button onClick={() => setActiveView('checklist')} className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg transition hover:bg-teal-700">
+                  ✅ Checklist SEO
+                </button>
+              </div>
+            </div>
+          );
+        };
+
+        const ScoreCard = ({ label, score }) => {
+            const getColor = (s) => {
+                if (s >= 80) return 'text-green-500';
+                if (s >= 50) return 'text-amber-500';
+                return 'text-red-500';
+            };
+            return (
+                <div className="bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 rounded-xl p-5 text-center">
+                    <div className={`text-4xl sm:text-5xl font-bold mb-2 ${getColor(score)}`}>{score}</div>
+                    <div className="text-sm text-gray-500 font-semibold uppercase tracking-wider">{label}</div>
+                </div>
+            );
+        };
+
+        const OverviewTab = ({ analysis }) => {
+            return (
+                <div className="animate-fade-in-fast">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
+                        <ScoreCard label="Punteggio Generale" score={analysis.scores.overall} />
+                        <ScoreCard label="Title" score={analysis.scores.title} />
+                        <ScoreCard label="Description" score={analysis.scores.description} />
+                        <ScoreCard label="Tecnici" score={analysis.scores.technical} />
+                        <ScoreCard label="Social" score={analysis.scores.social} />
+                    </div>
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+                        <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                          <span className="text-2xl">💡</span> Raccomandazioni Principali
+                        </h3>
+                        <div className="space-y-3">
+                            {analysis.recommendations.map((rec, index) => {
+                                const baseClass = 'p-3.5 border-l-4 rounded-md flex items-start gap-3';
+                                const styles = {
+                                    error: 'bg-red-50 border-red-500 text-red-800',
+                                    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800',
+                                    success: 'bg-green-50 border-green-500 text-green-800'
+                                };
+                                const icons = { error: '❌', warning: '⚠️', success: '✅' };
+
+                                return (
+                                    <div key={index} className={`${baseClass} ${styles[rec.type]}`}>
+                                        <span className="text-xl">{icons[rec.type]}</span>
+                                        <div>
+                                            <p className="font-semibold uppercase text-xs tracking-wider">{rec.category}</p>
+                                            <p className="text-sm">{rec.message}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const SerpPreviewTab = ({ analysis }) => {
+            const { metaTags, favicon } = analysis;
+            const title = metaTags.title || 'Titolo mancante';
+            const description = metaTags.description || 'Meta description mancante. Google genererà uno snippet dal contenuto della pagina.';
+            
+            let displayUrl = 'esempio.com/percorso-pagina';
+            if (metaTags.canonical) {
+              try {
+                const urlObject = new URL(metaTags.canonical);
+                displayUrl = urlObject.hostname + urlObject.pathname.replace(/\/$/, '');
+              } catch (e) {
+                // Ignore invalid canonical URL
+              }
+            }
+
+            return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">🔍 Anteprima Google SERP</h3>
+                    <p className="text-gray-500 mb-6">Ecco una stima di come apparirà il tuo sito nei risultati di ricerca di Google.</p>
+                    <div className="bg-white border border-gray-200 rounded-xl p-6 font-[Arial,sans-serif] max-w-2xl mx-auto">
+                        <div className="flex items-center gap-2 mb-1">
+                            <img src={favicon.standard} alt="favicon" className="w-5 h-5 rounded-full bg-gray-200" onError={(e) => (e.currentTarget.style.display = 'none')} />
+                            <span className="text-sm text-[#202124]">{displayUrl}</span>
+                        </div>
+                        <h3 className="text-xl text-[#1a0dab] group-hover:underline cursor-pointer break-words">
+                            {title.length > 60 ? `${title.substring(0, 60)}...` : title}
+                        </h3>
+                        <p className="text-sm text-[#4d5156] leading-relaxed mt-1 break-words">
+                            {description.length > 160 ? `${description.substring(0, 160)}...` : description}
+                        </p>
+                    </div>
+                    <div className="mt-6 max-w-2xl mx-auto space-y-3">
+                        <div className={`p-3.5 border-l-4 rounded-md ${metaTags.title.length >= 30 && metaTags.title.length <= 70 ? 'bg-green-50 border-green-500' : 'bg-yellow-50 border-yellow-500'}`}>
+                            <p className="font-semibold text-sm">Title</p>
+                            <p className="text-gray-700 text-sm">Lunghezza: {metaTags.title.length} caratteri (consigliati 50-60)</p>
+                        </div>
+                         <div className={`p-3.5 border-l-4 rounded-md ${metaTags.description.length >= 120 && metaTags.description.length <= 160 ? 'bg-green-50 border-green-500' : 'bg-yellow-50 border-yellow-500'}`}>
+                            <p className="font-semibold text-sm">Description</p>
+                            <p className="text-gray-700 text-sm">Lunghezza: {metaTags.description.length} caratteri (consigliati 150-160)</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const SocialCard = ({ platform, title, description, imageUrl, siteName }) => (
+            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                <div className="p-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-700">{platform}</div>
+                {imageUrl ? (
+                    <img src={imageUrl} alt="Social preview" className="w-full h-48 object-cover bg-gray-100" />
+                ) : (
+                    <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-400">Immagine non trovata</div>
+                )}
+                <div className="p-4 bg-gray-50/50">
+                    <p className="text-xs uppercase text-gray-500 mb-1">{siteName}</p>
+                    <h4 className="font-bold text-gray-800 mb-1 line-clamp-2">{title}</h4>
+                    <p className="text-sm text-gray-600 line-clamp-3">{description}</p>
+                </div>
+            </div>
+        );
+
+        const SocialPreviewTab = ({ analysis }) => {
+            const { metaTags } = analysis;
+            
+            let siteName = 'esempio.com';
+            const urlToParse = metaTags.ogUrl || metaTags.canonical;
+            if (urlToParse) {
+                try {
+                    siteName = new URL(urlToParse).hostname;
+                } catch (e) {
+                    // Ignore invalid URL
+                }
+            }
+
+            return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+                     <h3 className="text-xl font-bold text-gray-800 mb-2">📱 Anteprima Social Media</h3>
+                    <p className="text-gray-500 mb-6">Ecco come apparirà il link quando condiviso sui social media.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <SocialCard 
+                            platform="📘 Facebook / LinkedIn"
+                            title={metaTags.ogTitle || metaTags.title}
+                            description={metaTags.ogDescription || metaTags.description}
+                            imageUrl={metaTags.ogImage}
+                            siteName={siteName}
+                        />
+                        <SocialCard 
+                            platform="🐦 Twitter / X"
+                            title={metaTags.twitterTitle || metaTags.ogTitle || metaTags.title}
+                            description={metaTags.twitterDescription || metaTags.ogDescription || metaTags.description}
+                            imageUrl={metaTags.twitterImage || metaTags.ogImage}
+                            siteName={siteName}
+                        />
+                    </div>
+                </div>
+            );
+        };
+
+        const InfoItem = ({ label, value, status }) => {
+            const statusClasses = {
+                success: 'border-green-500 bg-green-50',
+                warning: 'border-yellow-500 bg-yellow-50',
+                error: 'border-red-500 bg-red-50',
+                neutral: 'border-gray-300 bg-gray-50',
+            };
+            return (
+                <div className={`p-3.5 border-l-4 rounded-md ${statusClasses[status]}`}>
+                    <p className="text-xs font-semibold uppercase text-gray-500 mb-1">{label}</p>
+                    <div className="text-sm text-gray-800 break-all">{value}</div>
+                </div>
+            );
+        }
+
+        const TechnicalTab = ({ analysis }) => {
+            const { metaTags, security, favicon } = analysis;
+            
+            return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4">⚙️ Meta Tag Tecnici</h3>
+                    <div className="space-y-4">
+                        <InfoItem label="🤖 Robots" value={metaTags.robots || 'Non specificato (default: index, follow)'} status={metaTags.robots?.includes('noindex') ? 'warning' : 'success'} />
+                        <InfoItem label="🔗 Canonical URL" value={metaTags.canonical || 'Non presente'} status={metaTags.canonical ? 'success' : 'warning'} />
+                        <InfoItem label="📱 Viewport" value={metaTags.viewport || 'Non presente'} status={metaTags.viewport ? 'success' : 'error'} />
+                        <InfoItem label="🔤 Charset" value={metaTags.charset || 'Non specificato'} status="neutral" />
+                        <InfoItem label="🌍 Language" value={metaTags.language || 'Non specificato'} status={metaTags.language ? 'neutral' : 'warning'} />
+                        <InfoItem label="🔒 HTTPS" value={security.https ? 'Sito sicuro (HTTPS)' : 'Sito non sicuro o non verificabile'} status={security.https ? 'success' : 'warning'} />
+                        <InfoItem label="🎨 Favicon" value={favicon.standard ? `Trovato` : 'Non trovato'} status={favicon.standard ? 'success' : 'warning'} />
+                    </div>
+                </div>
+            );
+        };
+
+        const StructuredDataTab = ({ analysis }) => {
+            const { structuredData } = analysis;
+
+            return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">🧩 Structured Data (Schema.org)</h3>
+                    {structuredData.length === 0 ? (
+                        <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800">
+                            <p className="font-bold">Nessun dato strutturato trovato.</p>
+                            <p>I "rich snippets" basati su structured data possono migliorare significativamente il tuo CTR.</p>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-gray-500 mb-4">Trovati {structuredData.length} blocchi di structured data (JSON-LD).</p>
+                            <div className="space-y-4">
+                                {structuredData.map((data, index) => (
+                                    <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                        <p className="font-semibold text-gray-700 mb-2">Schema #{index + 1}: <span className="font-bold text-blue-600">{data['@type']}</span></p>
+                                        <pre className="bg-gray-800 text-white p-4 rounded-md text-xs overflow-x-auto">
+                                            {JSON.stringify(data, null, 2)}
+                                        </pre>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+            );
+        };
+
+        const KeywordsTab = ({ analysis }) => {
+            const { keywords } = analysis;
+
+            return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">🔤 Analisi Keyword Density</h3>
+                    <p className="text-gray-500 mb-6">Le parole più frequenti nel contenuto della pagina (escluse stop words comuni).</p>
+                    {keywords.length > 0 ? (
+                        <div className="flex flex-wrap gap-3">
+                            {keywords.map((kw, index) => (
+                                <div key={index} className="bg-gray-100 rounded-full px-4 py-2 flex items-center gap-3 text-sm">
+                                    <span className="font-semibold text-gray-800">{kw.word}</span>
+                                    <span className="bg-blue-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">{kw.count}</span>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-gray-500">Nessuna keyword significativa trovata.</p>
+                    )}
+                </div>
+            );
+        };
+
+        const DetailsTab = ({ analysis }) => {
+            const { allMeta } = analysis.metaTags;
+            return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+                    <h3 className="text-xl font-bold text-gray-800 mb-4">📋 Dettagli Completi: Tutti i Meta Tag</h3>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-gray-500">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3">Attributo (name/property)</th>
+                                    <th scope="col" className="px-6 py-3">Contenuto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr className="bg-white border-b">
+                                    <td className="px-6 py-4 font-bold text-gray-900">title</td>
+                                    <td className="px-6 py-4">{analysis.metaTags.title || 'N/A'}</td>
+                                </tr>
+                                {allMeta.map((tag, index) => (
+                                    <tr key={index} className="bg-white border-b">
+                                        <td className="px-6 py-4 font-medium text-gray-900">{tag.name}</td>
+                                        <td className="px-6 py-4 break-all">{tag.content || 'N/A'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
+        };
+        
+        const MobilePreviewTab = ({ analysis }) => {
+          const { metaTags } = analysis;
+          
+          let displayUrl = metaTags.canonical || 'esempio.com/pagina';
+          try {
+             if (metaTags.canonical) displayUrl = new URL(metaTags.canonical).href;
+          } catch(e) {}
+
+
+          const desktopTitle = metaTags.title.length > 60 ? metaTags.title.substring(0, 60) + '...' : metaTags.title;
+          const mobileTitle = metaTags.title.length > 55 ? metaTags.title.substring(0, 55) + '...' : metaTags.title;
+
+          const desktopDesc = metaTags.description.length > 160 ? metaTags.description.substring(0, 160) + '...' : metaTags.description;
+          const mobileDesc = metaTags.description.length > 120 ? metaTags.description.substring(0, 120) + '...' : metaTags.description;
+
+          return (
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">📱 Preview Mobile vs Desktop</h3>
+              <p className="text-gray-500 mb-6">Google tronca i meta tag diversamente su mobile. Verifica che il messaggio chiave sia visibile.</p>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-bold text-lg mb-2 text-center">💻 Desktop</h4>
+                  <div className="p-4 border rounded-lg bg-gray-50 font-[Arial,sans-serif]">
+                    <p className="text-sm text-green-700 truncate">{displayUrl}</p>
+                    <p className="text-xl text-blue-800 hover:underline cursor-pointer">{desktopTitle || 'Titolo Mancante'}</p>
+                    <p className="text-sm text-gray-700">{desktopDesc || 'Descrizione Mancante'}</p>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="font-bold text-lg mb-2 text-center">📱 Mobile</h4>
+                  <div className="p-4 border rounded-lg bg-gray-50 font-[Arial,sans-serif]">
+                    <p className="text-sm text-green-700 truncate">{displayUrl}</p>
+                    <p className="text-lg text-blue-800 hover:underline cursor-pointer">{mobileTitle || 'Titolo Mancante'}</p>
+                    <p className="text-sm text-gray-700">{mobileDesc || 'Descrizione Mancante'}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+        
+        const ReadabilityTab = ({ analysis }) => {
+          const readability = analysis.readability;
+          if (!readability) return <div>Analisi di leggibilità non disponibile.</div>;
+
+          return (
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">📖 Analisi Leggibilità Flesch-Kincaid</h3>
+              <p className="text-gray-500 mb-6">Valuta quanto sono facili da leggere i tuoi meta tag.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
+                <div style={{ backgroundColor: readability.color }} className="text-white rounded-xl p-6">
+                  <div className="text-5xl font-bold">{readability.fleschScore}</div>
+                  <div className="font-semibold mt-1">Flesch Reading Ease</div>
+                  <div className="text-sm mt-2 opacity-90">{readability.difficulty}</div>
+                </div>
+                <div className="border-2 rounded-xl p-6" style={{ borderColor: readability.color }}>
+                  <div className="text-5xl font-bold" style={{ color: readability.color }}>{readability.gradeLevel}</div>
+                  <div className="font-semibold mt-1 text-gray-700">Flesch-Kincaid Grade</div>
+                  <div className="text-sm mt-2 text-gray-500">Livello scolastico richiesto</div>
+                </div>
+              </div>
+               <div className="mt-6 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl p-4 text-center">
+                    <h4 className="font-bold">Pubblico Target</h4>
+                    <p>{readability.audience}</p>
+                </div>
+            </div>
+          );
+        };
+        
+        const SentimentTab = ({ analysis }) => {
+          const sentiment = analysis.sentiment;
+          if (!sentiment) return <div>Analisi del sentiment non disponibile.</div>;
+
+          return (
+            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+              <h3 className="text-xl font-bold text-gray-800 mb-2">💭 Analisi Sentiment & Tono Emotivo</h3>
+              <p className="text-gray-500 mb-6">Analizza il tono emotivo e i trigger psicologici nei tuoi meta tag.</p>
+              <div className="text-center mb-6">
+                <div style={{ backgroundColor: sentiment.color }} className="text-white rounded-xl p-6 inline-block">
+                  <div className="text-5xl font-bold">{sentiment.label}</div>
+                  <div className="font-semibold mt-1">Score: {sentiment.score.toFixed(2)}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
+                <div className="bg-green-100 border-2 border-green-300 rounded-xl p-6">
+                  <div className="text-4xl font-bold text-green-800">{sentiment.positiveCount}</div>
+                  <div className="font-semibold mt-1 text-green-700">Parole Positive</div>
+                </div>
+                <div className="bg-red-100 border-2 border-red-300 rounded-xl p-6">
+                  <div className="text-4xl font-bold text-red-800">{sentiment.negativeCount}</div>
+                  <div className="font-semibold mt-1 text-red-700">Parole Negative</div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+        
+        const CompetitionTab = ({ analysis, history }) => {
+            const competitors = history.filter(item => item.url !== analysis.url);
+            if (competitors.length < 1) {
+                return (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm text-center">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">⚔️ Analisi Competitività Keyword</h3>
+                        <p className="text-gray-500">
+                          Analizza almeno un altro URL per confrontare le keyword e scoprire opportunità.
+                        </p>
+                    </div>
+                );
+            }
+            const competition = analyzeKeywordCompetition(analysis, competitors);
+            return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">⚔️ Analisi Competitività Keyword</h3>
+                    <p className="text-gray-500 mb-6">Identifica keyword uniche e differenziati dalla concorrenza (confronto con {competitors.length} altre pagine analizzate).</p>
+                    <div className="space-y-6">
+                        <div>
+                            <h4 className="text-lg font-semibold text-green-700 mb-2">🎯 Keyword Uniche (Vantaggio Competitivo)</h4>
+                            {competition.unique.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {competition.unique.map(kw => <span key={kw.keyword} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">{kw.keyword}</span>)}
+                                </div>
+                            ) : <p className="text-gray-500 text-sm">Nessuna keyword unica trovata.</p>}
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-semibold text-blue-700 mb-2">🤝 Keyword Condivise (Bassa Competizione)</h4>
+                             {competition.shared.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {competition.shared.map(kw => <span key={kw.keyword} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">{kw.keyword} ({kw.competitorCount})</span>)}
+                                </div>
+                            ) : <p className="text-gray-500 text-sm">Nessuna keyword a bassa competizione trovata.</p>}
+                        </div>
+                        <div>
+                            <h4 className="text-lg font-semibold text-red-700 mb-2">⚔️ Keyword Competitive (Alta Competizione)</h4>
+                             {competition.competitive.length > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                    {competition.competitive.map(kw => <span key={kw.keyword} className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">{kw.keyword} ({kw.competitorCount})</span>)}
+                                </div>
+                            ) : <p className="text-gray-500 text-sm">Nessuna keyword ad alta competizione trovata.</p>}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+        
+        const DuplicatesTab = ({ analysis, history }) => {
+            const competitors = history.filter(item => item.url !== analysis.url);
+            if (competitors.length < 1) {
+                return (
+                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm text-center">
+                        <h3 className="text-xl font-bold text-gray-800 mb-2">🚫 Rilevamento Duplicati</h3>
+                        <p className="text-gray-500">
+                          Analizza almeno un altro URL per verificare la presenza di meta tag duplicati.
+                        </p>
+                    </div>
+                );
+            }
+            const result = detectDuplicates(analysis, history);
+            return (
+                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">🚫 Rilevamento Duplicati & Cannibalizzazione</h3>
+                    <p className="text-gray-500 mb-6">Identifica meta tag duplicati o molto simili tra pagine diverse per evitare problemi di cannibalizzazione SEO.</p>
+                    {!result.hasDuplicates ? (
+                        <div className="p-6 bg-green-50 border-2 border-green-300 rounded-xl text-center">
+                            <p className="text-5xl mb-2">✅</p>
+                            <h4 className="text-lg font-bold text-green-800">Nessun Duplicato Rilevato!</h4>
+                            <p className="text-green-700">Ottimo! I tuoi meta tag sono unici rispetto alle altre pagine analizzate.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="p-6 bg-red-50 border-2 border-red-300 rounded-xl text-center mb-4">
+                                <p className="text-5xl mb-2">⚠️</p>
+                                <h4 className="text-lg font-bold text-red-800">{result.duplicates.length} Problema(i) Rilevato(i)</h4>
+                                <p className="text-red-700">Hai meta tag duplicati o molto simili che potrebbero confondere i motori di ricerca.</p>
+                            </div>
+                            {result.duplicates.map((dup, index) => (
+                                <div key={index} className={`p-3 border-l-4 rounded-md ${dup.similarity === 100 ? 'bg-red-50 border-red-400' : 'bg-yellow-50 border-yellow-400'}`}>
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <p className="font-semibold">{dup.type}</p>
+                                            <p className="text-sm text-gray-600 truncate max-w-md">con: {dup.url}</p>
+                                        </div>
+                                        <span className="text-sm font-bold">{dup.similarity}% simile</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+        
+        const TABS = [
+            { id: 'overview', label: 'Panoramica', icon: '📊' }, { id: 'serp', label: 'Anteprima SERP', icon: '🔍' },
+            { id: 'social', label: 'Social Preview', icon: '📱' }, { id: 'mobile', label: 'Preview Mobile', icon: '📱' },
+            { id: 'readability', label: 'Leggibilità', icon: '📖' }, { id: 'sentiment', label: 'Sentiment', icon: '💭' },
+            { id: 'competition', label: 'Competizione', icon: '⚔️' }, { id: 'duplicates', label: 'Duplicati', icon: '🚫' },
+            { id: 'keywords', label: 'Keyword Analysis', icon: '🔤' }, { id: 'technical', label: 'Meta Tecnici', icon: '⚙️' },
+            { id: 'structured', label: 'Structured Data', icon: '🧩' }, { id: 'details', label: 'Dettagli Completi', icon: '📋' },
+        ];
+        const AnalysisView = ({ analysis, history }) => {
+            const [activeTab, setActiveTab] = useState('overview');
+            const renderTabContent = () => {
+                switch (activeTab) {
+                    case 'overview': return <OverviewTab analysis={analysis} />;
+                    case 'serp': return <SerpPreviewTab analysis={analysis} />;
+                    case 'social': return <SocialPreviewTab analysis={analysis} />;
+                    case 'technical': return <TechnicalTab analysis={analysis} />;
+                    case 'structured': return <StructuredDataTab analysis={analysis} />;
+                    case 'keywords': return <KeywordsTab analysis={analysis} />;
+                    case 'details': return <DetailsTab analysis={analysis} />;
+                    case 'mobile': return <MobilePreviewTab analysis={analysis} />;
+                    case 'readability': return <ReadabilityTab analysis={analysis} />;
+                    case 'sentiment': return <SentimentTab analysis={analysis} />;
+                    case 'competition': return <CompetitionTab analysis={analysis} history={history} />;
+                    case 'duplicates': return <DuplicatesTab analysis={analysis} history={history} />;
+                    default: return null;
+                }
+            };
+            return (
+                <div className="animate-fade-in">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2 sm:gap-3 mb-6">
+                        {TABS.map(tab => (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`py-3 px-2 text-xs sm:text-sm font-semibold text-white rounded-xl cursor-pointer transition-all duration-300 ease-in-out shadow-md hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 flex items-center justify-center gap-2 ${activeTab === tab.id ? 'bg-gradient-to-br from-blue-600 to-blue-700 shadow-xl -translate-y-0.5 ring-blue-500' : 'bg-gradient-to-br from-teal-600 to-teal-700'}`}
+                            >
+                                <span className="hidden sm:inline">{tab.icon}</span>
+                                <span>{tab.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <div>{renderTabContent()}</div>
+                </div>
+            );
+        };
+        
+        const HistoryView = ({ history, setHistory, onView }) => {
+            const handleDelete = (index) => {
+                if (window.confirm('Eliminare questa analisi?')) {
+                    const newHistory = history.filter((_, i) => i !== index);
+                    setHistory(newHistory);
+                }
+            };
+            const handleClear = () => {
+                if (window.confirm('Eliminare tutto lo storico? Questa azione non può essere annullata.')) {
+                    setHistory([]);
+                }
+            }
+            if (history.length === 0) {
+                return (
+                    <div className="bg-white border-2 border-gray-200 rounded-2xl p-7 mb-6 shadow-sm text-center">
+                        <h2 className="text-xl font-bold text-gray-800 mb-2">📊 Storico Analisi</h2>
+                        <p className="text-gray-500">Nessuna analisi salvata. Analizza un URL per iniziare!</p>
+                    </div>
+                );
+            }
+            const chartData = history.slice().reverse().map(item => ({
+                name: new Date(item.timestamp).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
+                'Punteggio Generale': item.score,
+                'Title': item.data.scores.title,
+                'Description': item.data.scores.description,
+                'Tecnici': item.data.scores.technical,
+                'Social': item.data.scores.social,
+            }));
+            const latestScores = chartData[chartData.length - 1];
+            const breakdownData = latestScores ? [
+                { name: 'Title', Punteggio: latestScores.Title }, { name: 'Desc', Punteggio: latestScores.Description },
+                { name: 'Tecnici', Punteggio: latestScores.Tecnici }, { name: 'Social', Punteggio: latestScores.Social },
+                { name: 'Generale', Punteggio: latestScores['Punteggio Generale'] },
+            ] : [];
+
+            return (
+                <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-7 mb-6 shadow-sm animate-fade-in">
+                    <h2 className="text-xl font-bold text-gray-800 mb-4">📊 Storico Analisi ({history.length})</h2>
+                    {history.length >= 2 && (
+                        <>
+                            <div className="mb-8">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-4">📈 Evoluzione Punteggi SEO</h3>
+                                <div className="h-72 w-full">
+                                    <ResponsiveContainer>
+                                        <LineChart data={chartData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" />
+                                            <YAxis domain={[0, 100]} />
+                                            <Tooltip />
+                                            <Legend />
+                                            <Line type="monotone" dataKey="Punteggio Generale" stroke="#2563eb" strokeWidth={3} />
+                                            <Line type="monotone" dataKey="Title" stroke="#10b981" />
+                                            <Line type="monotone" dataKey="Description" stroke="#f59e0b" />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                            <div className="mb-8">
+                                <h3 className="text-lg font-semibold text-gray-700 mb-4">📊 Confronto Categorie (Ultima Analisi)</h3>
+                                <div className="h-64 w-full">
+                                    <ResponsiveContainer>
+                                        <BarChart data={breakdownData}>
+                                            <CartesianGrid strokeDasharray="3 3" />
+                                            <XAxis dataKey="name" />
+                                            <YAxis domain={[0, 100]} />
+                                            <Tooltip />
+                                            <Bar dataKey="Punteggio" fill="#8884d8" />
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    <h3 className="text-lg font-semibold text-gray-700 mb-4">📋 Cronologia Completa</h3>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left text-gray-500">
+                            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
+                                <tr>
+                                    <th scope="col" className="px-6 py-3">URL</th>
+                                    <th scope="col" className="px-6 py-3">Data</th>
+                                    <th scope="col" className="px-6 py-3">Score</th>
+                                    <th scope="col" className="px-6 py-3">Azioni</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {history.map((item, index) => (
+                                    <tr key={index} className="bg-white border-b hover:bg-gray-50">
+                                        <td className="px-6 py-4 font-medium text-gray-900 truncate max-w-xs">{item.url}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">{new Date(item.timestamp).toLocaleString('it-IT')}</td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${item.score >= 80 ? 'bg-green-100 text-green-800' : item.score >= 50 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{item.score}</span>
+                                        </td>
+                                        <td className="px-6 py-4 flex gap-2">
+                                            <button onClick={() => onView(item)} className="font-medium text-blue-600 hover:underline">Visualizza</button>
+                                            <button onClick={() => handleDelete(index)} className="font-medium text-red-600 hover:underline">Elimina</button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div className="mt-6 text-center">
+                        <button onClick={handleClear} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg transition hover:bg-red-700">
+                            🗑️ Cancella Tutto
+                        </button>
+                    </div>
+                </div>
+            );
+        };
+        
+        const MultiPageView = () => {
+          const [htmlContents, setHtmlContents] = useState(['', '']);
+          const [results, setResults] = useState([]);
+          const [isLoading, setIsLoading] = useState(false);
+          const handleContentChange = (index, value) => {
+            const newContents = [...htmlContents];
+            newContents[index] = value;
+            setHtmlContents(newContents);
+          };
+          const addField = () => setHtmlContents([...htmlContents, '']);
+          const removeField = (index) => setHtmlContents(htmlContents.filter((_, i) => i !== index));
+          const analyzeMultiple = async () => {
+              const validContents = htmlContents.filter(content => content.trim());
+              if (validContents.length === 0) return;
+              setIsLoading(true);
+              setResults([]);
+              const analysisPromises = validContents.map(async (html, index) => {
+                  const url = `analisi-${index + 1}`;
+                  try { return performFullAnalysis(url, html); } 
+                  catch (e) { return { url, error: e.message }; }
+              });
+              const settledResults = await Promise.all(analysisPromises);
+              setResults(settledResults);
+              setIsLoading(false);
+          };
+
+          return (
+            <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-7 mb-6 shadow-sm animate-fade-in">
+              <h2 className="text-xl font-bold text-gray-800 mb-2">📑 Analisi Multi-Pagina</h2>
+              <p className="text-gray-500 mb-4">Incolla il codice HTML di più pagine per confrontarle.</p>
+              <div className="space-y-3 mb-4">
+                {htmlContents.map((content, index) => (
+                  <div key={index} className="flex flex-col sm:flex-row gap-2">
+                    <textarea
+                      value={content}
+                      onChange={(e) => handleContentChange(index, e.target.value)}
+                      placeholder={`Incolla HTML pagina ${index + 1}...`}
+                      className="flex-1 min-w-0 px-4 py-2 text-sm border-2 border-gray-300 rounded-lg outline-none transition-all duration-200 h-24 font-mono"
+                    />
+                    {htmlContents.length > 2 && (
+                      <button onClick={() => removeField(index)} className="px-3 py-2 bg-red-100 text-red-700 rounded-lg font-semibold hover:bg-red-200 self-center">Rimuovi</button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-3 justify-center">
+                <button onClick={addField} className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg transition hover:bg-teal-700">➕ Aggiungi Campo</button>
+                <button onClick={analyzeMultiple} disabled={isLoading} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg transition hover:bg-blue-700 disabled:bg-gray-400">
+                  {isLoading ? 'Analisi...' : '🚀 Analizza Tutti'}
+                </button>
+              </div>
+              {isLoading && <p className="text-center mt-4">Analisi in corso...</p>}
+              {results.length > 0 && (
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                      {results.map((result, index) => (
+                          <div key={index} className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
+                              <p className="font-semibold text-blue-600 truncate mb-2">{`Pagina ${index + 1}`}</p>
+                              {'error' in result ? (
+                                  <p className="text-red-500">❌ {result.error}</p>
+                              ) : (
+                                <div className="space-y-2 text-sm">
+                                   <div className="flex justify-between items-center">
+                                        <span className="font-bold">Score:</span> 
+                                        <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${result.scores.overall > 75 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{result.scores.overall}</span>
+                                   </div>
+                                   <div className="p-2 bg-white rounded">
+                                       <p className="font-bold text-gray-500 text-xs">TITLE ({result.metaTags.title.length})</p>
+                                       <p className="text-gray-800 truncate">{result.metaTags.title || 'N/A'}</p>
+                                   </div>
+                                    <div className="p-2 bg-white rounded">
+                                       <p className="font-bold text-gray-500 text-xs">DESC ({result.metaTags.description.length})</p>
+                                       <p className="text-gray-800 line-clamp-2">{result.metaTags.description || 'N/A'}</p>
+                                   </div>
+                                </div>
+                              )}
+                          </div>
+                      ))}
+                  </div>
+              )}
+            </div>
+          );
+        };
+        
+        const ChecklistView = ({ checklist, setChecklist }) => {
+          const getInitialState = () => {
+            if (checklist && checklist.length === CHECKLIST_ITEMS.length) return checklist;
+            return CHECKLIST_ITEMS.map(item => ({...item, checked: false}));
+          };
+          const items = getInitialState();
+          const handleToggle = (index) => {
+            const newItems = [...items];
+            newItems[index].checked = !newItems[index].checked;
+            setChecklist(newItems);
+          };
+          const completed = items.filter(item => item.checked).length;
+          const progress = Math.round((completed / items.length) * 100);
+
+          return (
+            <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-7 mb-6 shadow-sm animate-fade-in">
+                <h2 className="text-xl font-bold text-gray-800 mb-2">✅ Checklist SEO Completa</h2>
+                <div className="my-4">
+                    <div className="flex justify-between mb-1">
+                        <span className="text-base font-medium text-blue-700">Progresso</span>
+                        <span className="text-sm font-medium text-blue-700">{progress}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2.5">
+                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
+                    </div>
+                     <p className="text-gray-500 text-sm mt-2">Completati: <strong>{completed} / {items.length}</strong></p>
+                </div>
+
+                <div className="space-y-2">
+                    {items.map((item, index) => (
+                        <div key={index} className={`p-3 border rounded-lg transition-all ${item.checked ? 'bg-green-50 border-green-200 opacity-70' : 'bg-gray-50 border-gray-200'}`}>
+                            <label className="flex items-start cursor-pointer">
+                                <input
+                                    type="checkbox"
+                                    checked={item.checked}
+                                    onChange={() => handleToggle(index)}
+                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <div className="ml-3 text-sm">
+                                    <p className={`font-medium ${item.checked ? 'line-through text-gray-500' : 'text-gray-900'}`}>{item.title}</p>
+                                    <p className="text-gray-500">{item.description}</p>
+                                </div>
+                            </label>
+                        </div>
+                    ))}
+                </div>
+            </div>
+          );
+        };
+        
+        const LoadingSpinner = () => (
+          <div className="text-center p-16 bg-white rounded-2xl shadow-md">
+            <div className="w-14 h-14 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-5"></div>
+            <p className="text-base text-gray-500 font-medium">Analisi in corso...</p>
+            <p className="text-sm text-gray-400 mt-2">Recupero e analisi dell'HTML...</p>
+          </div>
+        );
+
+        const ResultsContainer = ({ isLoading, currentAnalysis, activeView, setActiveView, analysisHistory, setAnalysisHistory, setCurrentAnalysis, checklist, setChecklist }) => {
+            if (isLoading) return <LoadingSpinner />;
+            if (activeView === 'analysis') {
+                if (!currentAnalysis) return null;
+                return <AnalysisView analysis={currentAnalysis} history={analysisHistory} />;
+            }
+            if (activeView === 'history') {
+                return (
+                    <HistoryView
+                        history={analysisHistory}
+                        setHistory={setAnalysisHistory}
+                        onView={(item) => {
+                            setCurrentAnalysis(item.data);
+                            setActiveView('analysis');
+                        }}
+                    />
+                );
+            }
+            if (activeView === 'multi-page') return <MultiPageView />;
+            if (activeView === 'checklist') return <ChecklistView checklist={checklist} setChecklist={setChecklist} />;
+            return null;
+        };
+        
+        // App.tsx
+        const App = () => {
+          const [htmlContent, setHtmlContent] = useState('');
+          const [isLoading, setIsLoading] = useState(false);
+          const [error, setError] = useState(null);
+          const [currentAnalysis, setCurrentAnalysis] = useState(null);
+          const [activeView, setActiveView] = useState('analysis');
+          const [analysisHistory, setAnalysisHistory] = useLocalStorage('ewa-meta-history', []);
+          const [checklist, setChecklist] = useLocalStorage('ewa-meta-checklist', []);
+
+          useEffect(() => {
+            if (error) {
+              const timer = setTimeout(() => setError(null), 5000);
+              return () => clearTimeout(timer);
+            }
+          }, [error]);
+
+          const saveToHistory = (analysis) => {
+            const newHistory = [
+              { url: analysis.url, timestamp: analysis.timestamp, score: analysis.scores.overall, data: analysis },
+              ...analysisHistory
+            ].slice(0, 50);
+            setAnalysisHistory(newHistory);
+          };
+
+          const handleAnalyze = useCallback(async () => {
+            if (!htmlContent.trim()) {
+              setError('Per favore, incolla del codice HTML valido');
+              return;
+            }
+            setIsLoading(true);
+            setError(null);
+            setCurrentAnalysis(null);
+            setActiveView('analysis');
+            await new Promise(resolve => setTimeout(resolve, 250));
+            try {
+              const analysis = performFullAnalysis(`analisi-locale-${Date.now()}`, htmlContent);
+              setCurrentAnalysis(analysis);
+              saveToHistory(analysis);
+            } catch (e) {
+              setError(`Errore durante l'analisi: ${e.message}`);
+              setCurrentAnalysis(null);
+            } finally {
+              setIsLoading(false);
+            }
+          }, [htmlContent, analysisHistory, setAnalysisHistory]);
+
+          return (
+            <div className="p-2 sm:p-5 font-sans leading-relaxed text-gray-800 bg-gray-50 min-h-screen">
+              <div className="max-w-7xl mx-auto">
+                <Header />
+                <main>
+                  <InputSection
+                    htmlContent={htmlContent}
+                    setHtmlContent={setHtmlContent}
+                    handleAnalyze={handleAnalyze}
+                    isLoading={isLoading}
+                    setActiveView={setActiveView}
+                  />
+                  {error && (
+                    <div className="bg-red-100 border border-red-300 rounded-xl p-4 mb-5">
+                      <p className="text-red-800 font-medium">{error}</p>
+                    </div>
+                  )}
+                  <ResultsContainer
+                    isLoading={isLoading}
+                    currentAnalysis={currentAnalysis}
+                    activeView={activeView}
+                    setActiveView={setActiveView}
+                    analysisHistory={analysisHistory}
+                    setAnalysisHistory={setAnalysisHistory}
+                    setCurrentAnalysis={setCurrentAnalysis}
+                    checklist={checklist}
+                    setChecklist={setChecklist}
+                  />
+                </main>
+              </div>
+            </div>
+          );
+        };
+
+        // index.tsx -> Renders the App
+        const rootElement = document.getElementById('root');
+        if (rootElement) {
+          const root = createRoot(rootElement);
+          root.render(
+            <StrictMode>
+              <App />
+            </StrictMode>
+          );
+        } else {
+          console.error("Root element not found");
+        }
+
+    </script>
+</body>
+</html>
