@@ -1,1391 +1,1303 @@
+
 <!DOCTYPE html>
-<html lang="it">
-<head>
+<html lang="en">
+  <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Analizzatore Meta Tag SEO PRO</title>
-    
-    <!-- Tailwind CSS -->
+    <title>SEO Meta Tag Analyzer PRO</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- Dependencies (UMD Global Scripts) -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              'gray-900': '#121212',
+              'gray-800': '#1e1e1e',
+              'gray-700': '#2a2a2a',
+              'gray-600': '#3a3a3a',
+            },
+            animation: {
+              'fade-in': 'fadeIn 0.5s ease-in-out',
+              'slide-in-up': 'slideInUp 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940)',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: 0 },
+                '100%': { opacity: 1 },
+              },
+              slideInUp: {
+                '0%': { transform: 'translateY(20px)', opacity: 0 },
+                '100%': { transform: 'translateY(0)', opacity: 1 },
+              },
+            },
+          },
+        },
+      }
+    </script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    
-    <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-        scroll-behavior: smooth;
-      }
-      .recharts-wrapper {
-        outline: none !important;
-      }
-      .recharts-surface {
-        outline: none !important;
-      }
-      @keyframes fadeIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
-      }
-      .animate-fade-in { animation: fadeIn 0.5s ease-in-out; }
-      
-      @keyframes fadeInFast {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      .animate-fade-in-fast { animation: fadeInFast 0.3s ease-in-out; }
-
-      .line-clamp-2 {
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;  
-        overflow: hidden;
-      }
-      .line-clamp-3 {
-        display: -webkit-box;
-        -webkit-line-clamp: 3;
-        -webkit-box-orient: vertical;  
-        overflow: hidden;
-      }
-    </style>
-</head>
-<body class="bg-gray-50">
+  </head>
+  <body class="bg-gray-900 text-gray-200 font-sans">
     <div id="root"></div>
+    <script type="text/babel">
+      const { useState, useEffect, useCallback, useRef, useMemo } = React;
 
-    <script type="text/babel" data-presets="react">
-    
-        // --- SETUP DEPENDENCIES ---
-        const { useState, useCallback, useEffect, StrictMode } = React;
-        const { createRoot } = ReactDOM;
-        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } = Recharts;
+      // START: components/Icons.tsx
+      const MagnifyingGlassIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+        </svg>
+      );
+      const PlusIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      );
+      const TrashIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.067-2.09 1.02-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+        </svg>
+      );
+      const ChartBarIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
+        </svg>
+      );
+      const ClipboardDocumentCheckIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 0 1 9 9v.375M10.125 2.25A3.375 3.375 0 0 1 13.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 0 1 3.375 3.375M9 15l2.25 2.25L15 12" />
+        </svg>
+      );
+      const DocumentArrowDownIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+        </svg>
+      );
+      const SparklesIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
+        </svg>
+      );
+      const ArrowRightIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
+        </svg>
+      );
+      const ChartPieIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" /></svg>
+      );
+      const CheckBadgeIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+      );
+      const DocumentTextIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
+      );
+      const ShareIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.186 2.25 2.25 0 0 0-3.933 2.186Z" /></svg>
+      );
+      const LightBulbIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.311a7.5 7.5 0 0 1-7.5 0c.412-.623 1.043-1.16 1.753-1.598m13.256 0A12.06 12.06 0 0 1 12 21.75v-2.311m0-11.411a6.01 6.01 0 0 1 2.804.577m-2.804-.577a6.01 6.01 0 0 0-2.804.577m5.608 4.136a12.063 12.063 0 0 1 3.426 0m-3.426 0a6.013 6.013 0 0 1-3.426 0m.334-6.162a3.003 3.003 0 0 1 2.75 0m-2.75 0a3.003 3.003 0 0 0-2.75 0m5.5 0a3.003 3.003 0 0 1 2.75 0m-2.75 0a3.003 3.003 0 0 0-2.75 0" /></svg>
+      );
+      const CodeBracketIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
+      );
+      const DocumentMagnifyingGlassIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Zm3.75 11.625a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
+      );
+      const CheckCircleIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+      );
+      const XCircleIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
+      );
+       const InformationCircleIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
+      );
+      const ExclamationTriangleIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+      );
+      const GoogleIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className}><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/><path fill="none" d="M1 1h22v22H1z"/></svg>
+      );
+      const FacebookIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24"><path fill="currentColor" d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>
+      );
+      const TwitterIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24"><path fill="currentColor" d="M22.46 6c-.77.35-1.6.58-2.46.67.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.22-1.95-.55v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21c7.35 0 11.37-6.08 11.37-11.37l-.01-.52c.78-.57 1.45-1.28 1.98-2.09z"/></svg>
+      );
+      const LinkedInIcon = ({ className }) => (
+          <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24"><path fill="currentColor" d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77Z"/></svg>
+      );
+      const XMarkIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+        </svg>
+      );
+      const ArrowPathIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.667 0l3.181-3.183m-4.991-2.696v4.992h-4.992m0 0-3.181-3.183a8.25 8.25 0 0 1 11.667 0l3.181 3.183" />
+        </svg>
+      );
+      const ClipboardDocumentIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m9.375 0-9.375 0" />
+        </svg>
+      );
+      const ChevronDownIcon = ({ className }) => (
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      );
+      // END: components/Icons.tsx
 
-        // --- INLINED CODE FROM ALL FILES ---
+      // START: components/Loader.tsx
+      const Loader = () => (
+          <div className="flex flex-col items-center justify-center my-16 animate-fade-in">
+              <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <p className="mt-4 text-lg font-semibold text-gray-300">Analyzing... this may take a moment.</p>
+          </div>
+      );
+      // END: components/Loader.tsx
 
-        // constants.ts
-        const CHECKLIST_ITEMS = [
-            { title: 'Title Tag Ottimizzato', description: 'Il title ha tra 50-60 caratteri e include keyword principali' },
-            { title: 'Meta Description Completa', description: 'Description tra 150-160 caratteri, attraente e con CTA' },
-            { title: 'URL SEO-Friendly', description: 'URL brevi, descrittivi e con keyword separate da trattini' },
-            { title: 'Tag H1 Unico', description: 'Una sola H1 per pagina che include keyword principale' },
-            { title: 'Tag Canonical Presente', description: 'Previene problemi di contenuto duplicato' },
-            { title: 'Viewport Meta Tag', description: 'Essenziale per responsive design e mobile SEO' },
-            { title: 'Open Graph Tags', description: 'Ottimizza la condivisione su Facebook, LinkedIn, etc.' },
-            { title: 'Twitter Card Tags', description: 'Migliora la condivisione su Twitter / X' },
-            { title: 'Structured Data (Schema.org)', description: 'Implementato per rich snippet (es. Article, Product)' },
-            { title: 'Favicon Presente', description: 'Icona del sito visibile nei browser' },
-            { title: 'HTTPS Attivo', description: 'Certificato SSL installato e funzionante' },
-            { title: 'Velocità Pagina Ottimizzata', description: 'Punteggio PageSpeed Insights > 85' },
-            { title: 'Immagini Ottimizzate', description: 'Formati moderni (WebP), dimensioni corrette, lazy loading' },
-            { title: 'Alt Text Immagini', description: 'Tutte le immagini hanno alt text descrittivo' },
-            { title: 'Link Interni Strategici', description: 'Almeno 3-5 link interni rilevanti per pagina' },
-            { title: 'Contenuto Unico e Originale', description: 'Nessun contenuto duplicato sul sito o esternamente' },
-            { title: 'Mobile-Friendly Design', description: 'Supera il test di ottimizzazione mobile di Google' },
-        ];
+      // START: services/storageService.ts
+      const HISTORY_KEY = 'seoAnalyzerHistory';
+      const CHECKLIST_KEY = 'seoAnalyzerChecklist';
 
-        // hooks/useLocalStorage.ts
-        function useLocalStorage(key, initialValue) {
-            const [value, setValue] = useState(() => {
-                try {
-                    const savedValue = localStorage.getItem(key);
-                    if (savedValue !== null) {
-                        return JSON.parse(savedValue);
-                    }
-                    return initialValue instanceof Function ? initialValue() : initialValue;
-                } catch {
-                    return initialValue instanceof Function ? initialValue() : initialValue;
-                }
-            });
-
-            useEffect(() => {
-                try {
-                    localStorage.setItem(key, JSON.stringify(value));
-                } catch (error) {
-                    console.error("Could not save to local storage", error);
-                }
-            }, [value, key]);
-
-            return [value, setValue];
-        }
-
-        // services/analysisService.ts
-        function analyzeSecurityBasics(url) {
-            if (!url) {
-                return { https: false, protocol: 'N/A' };
-            }
-            try {
-                const urlObj = new URL(url);
-                return { https: urlObj.protocol === 'https:', protocol: urlObj.protocol };
-            } catch (e) {
-                return { https: false, protocol: 'N/A' };
-            }
-        }
-
-        function performFullAnalysis(url, html) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
-
-            const metaTags = extractMetaTags(doc);
-            
-            const analysis = {
-                url: url,
-                timestamp: new Date().toISOString(),
-                html: html,
-                metaTags: metaTags,
-                structuredData: extractStructuredData(doc),
-                keywords: [],
-                allKeywords: [],
-                favicon: extractFavicon(doc, url),
-                security: analyzeSecurityBasics(metaTags.canonical), // Use canonical URL for security check
-                scores: { overall: 0, title: 0, description: 0, technical: 0, social: 0 },
-                recommendations: [],
-            };
-            
-            const keywordAnalysis = analyzeKeywords(doc);
-            analysis.keywords = keywordAnalysis.keywords;
-            analysis.allKeywords = keywordAnalysis.allKeywords;
-
-            analysis.scores = calculateScores(analysis);
-            analysis.recommendations = generateRecommendations(analysis);
-            analysis.readability = analyzeReadability(analysis.metaTags.title, analysis.metaTags.description);
-            analysis.sentiment = analyzeSentiment(analysis.metaTags.title, analysis.metaTags.description);
-            
-            return analysis;
-        }
-
-        function extractMetaTags(doc) {
-            const meta = {
-                title: doc.querySelector('title')?.textContent.trim() || '',
-                description: '', keywords: '', robots: '', canonical: '', viewport: '',
-                charset: '', language: '', author: '', ogTitle: '', ogDescription: '',
-                ogImage: '', ogUrl: '', ogType: '', twitterCard: '', twitterTitle: '',
-                twitterDescription: '', twitterImage: '', allMeta: []
-            };
-
-            doc.querySelectorAll('meta').forEach(tag => {
-                const name = tag.getAttribute('name') || tag.getAttribute('property') || '';
-                const content = tag.getAttribute('content') || '';
-                if (name) meta.allMeta.push({ name, content });
-
-                switch (name) {
-                    case 'description': meta.description = content; break;
-                    case 'keywords': meta.keywords = content; break;
-                    case 'robots': meta.robots = content; break;
-                    case 'viewport': meta.viewport = content; break;
-                    case 'author': meta.author = content; break;
-                    case 'og:title': meta.ogTitle = content; break;
-                    case 'og:description': meta.ogDescription = content; break;
-                    case 'og:image': meta.ogImage = content; break;
-                    case 'og:url': meta.ogUrl = content; break;
-                    case 'og:type': meta.ogType = content; break;
-                    case 'twitter:card': meta.twitterCard = content; break;
-                    case 'twitter:title': meta.twitterTitle = content; break;
-                    case 'twitter:description': meta.twitterDescription = content; break;
-                    case 'twitter:image': meta.twitterImage = content; break;
-                }
-            });
-
-            meta.charset = doc.querySelector('meta[charset]')?.getAttribute('charset') || doc.characterSet || '';
-            meta.canonical = doc.querySelector('link[rel="canonical"]')?.getAttribute('href') || '';
-            meta.language = doc.documentElement.getAttribute('lang') || '';
-
-            return meta;
-        }
-        
-        function extractStructuredData(doc) {
-            const scripts = doc.querySelectorAll('script[type="application/ld+json"]');
-            const data = [];
-            scripts.forEach(script => {
-                try {
-                    if (script.textContent) {
-                        const parsed = JSON.parse(script.textContent);
-                        if(Array.isArray(parsed)) {
-                            data.push(...parsed);
-                        } else {
-                            data.push(parsed);
-                        }
-                    }
-                } catch (e) {
-                    console.warn("Failed to parse structured data JSON", e);
-                }
-            });
-            return data;
-        }
-
-        function analyzeKeywords(doc) {
-            const title = doc.querySelector('title')?.textContent || '';
-            const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') || '';
-            const bodyText = doc.body?.textContent.substring(0, 5000) || '';
-            const text = `${title} ${description} ${bodyText}`;
-
-            const stopWords = ['e', 'di', 'a', 'da', 'in', 'con', 'su', 'per', 'tra', 'fra', 'il', 'lo', 'la', 'i', 'gli', 'le', 'un', 'una', 'che', 'ed', 'del', 'della', 'dei', 'delle', 'al', 'alla', 'ai', 'alle', 'nel', 'nella', 'nei', 'nelle', 'the', 'and', 'a', 'to', 'of', 'in', 'for', 'is', 'on', 'with'];
-            const words = text.toLowerCase().match(/\b(\w{4,})\b/g) || [];
-            
-            const filteredWords = words.filter(word => !stopWords.includes(word));
-            
-            const frequency = {};
-            filteredWords.forEach(word => {
-                frequency[word] = (frequency[word] || 0) + 1;
-            });
-            
-            const sortedKeywords = Object.keys(frequency)
-                .sort((a, b) => frequency[b] - frequency[a])
-                .slice(0, 20)
-                .map(word => ({ word, count: frequency[word] }));
-
-            return { keywords: sortedKeywords, allKeywords: Object.keys(frequency) };
-        }
-
-        function extractFavicon(doc, pageUrl) {
-            const favicon = { standard: '', appleTouchIcon: '', sizes: [] };
-            
-            doc.querySelectorAll('link[rel*="icon"]').forEach(link => {
-                const rel = link.getAttribute('rel') || '';
-                const href = link.getAttribute('href');
-                if (!href) return;
-
-                if (rel.includes('apple-touch-icon')) {
-                    favicon.appleTouchIcon = href;
-                } else if (rel.includes('icon')) {
-                    favicon.standard = href;
-                }
-                const sizes = link.getAttribute('sizes');
-                if (sizes) favicon.sizes.push(sizes);
-            });
-            
-            if(!favicon.standard) {
-                favicon.standard = '/favicon.ico';
-            }
-
-            return favicon;
-        }
-
-        function calculateScores(analysis) {
-            const scores = { overall: 0, title: 0, description: 0, technical: 0, social: 0 };
-            const { metaTags, security } = analysis;
-
-            scores.title = metaTags.title ? (metaTags.title.length >= 30 && metaTags.title.length <= 70 ? 100 : 60) : 0;
-            scores.description = metaTags.description ? (metaTags.description.length >= 120 && metaTags.description.length <= 160 ? 100 : 60) : 0;
-            
-            let techScore = 0;
-            if (metaTags.canonical) techScore += 25;
-            if (metaTags.robots ? !metaTags.robots.includes('noindex') : true) techScore += 25;
-            if (metaTags.viewport) techScore += 25;
-            if (security.https) techScore += 25;
-            scores.technical = techScore;
-            
-            let socialScore = 0;
-            if (metaTags.ogTitle) socialScore += 25;
-            if (metaTags.ogDescription) socialScore += 25;
-            if (metaTags.ogImage) socialScore += 25;
-            if (metaTags.twitterCard) socialScore += 25;
-            scores.social = socialScore;
-            
-            scores.overall = Math.round((scores.title + scores.description + scores.technical + scores.social) / 4);
-            
-            return scores;
-        }
-
-        function generateRecommendations(analysis) {
-            const recs = [];
-            const { metaTags, security, structuredData } = analysis;
-
-            if (!metaTags.title) recs.push({ type: 'error', category: 'title', message: 'Il tag title è mancante. È fondamentale per la SEO!' });
-            else if (metaTags.title.length < 30) recs.push({ type: 'warning', category: 'title', message: `Il title è troppo corto (${metaTags.title.length} caratteri). Consigliato: 50-60.` });
-            else if (metaTags.title.length > 70) recs.push({ type: 'warning', category: 'title', message: `Il title è troppo lungo (${metaTags.title.length} caratteri). Sarà troncato.` });
-            else recs.push({ type: 'success', category: 'title', message: `Title ottimale (${metaTags.title.length} caratteri).` });
-
-            if (!metaTags.description) recs.push({ type: 'error', category: 'description', message: 'La meta description è mancante!' });
-            else if (metaTags.description.length < 120) recs.push({ type: 'warning', category: 'description', message: `Description troppo corta (${metaTags.description.length} caratteri). Consigliato: 150-160.` });
-            else if (metaTags.description.length > 160) recs.push({ type: 'warning', category: 'description', message: `Description troppo lunga (${metaTags.description.length} caratteri).` });
-            else recs.push({ type: 'success', category: 'description', message: `Description ottimale (${metaTags.description.length} caratteri).` });
-            
-            if (!metaTags.canonical) recs.push({ type: 'warning', category: 'technical', message: 'Manca il tag canonical. Utile per evitare contenuti duplicati.' });
-            if (!metaTags.viewport) recs.push({ type: 'error', category: 'technical', message: 'Manca il tag viewport. Critico per la visualizzazione su mobile.' });
-            if (!security.https) recs.push({ type: 'warning', category: 'technical', message: 'Impossibile verificare HTTPS. Assicurati che il sito lo usi.' });
-            
-            if (!metaTags.ogTitle || !metaTags.ogDescription || !metaTags.ogImage) recs.push({ type: 'warning', category: 'social', message: 'Mancano tag Open Graph (titolo, descrizione, immagine). Importanti per la condivisione sui social.' });
-            if (!metaTags.twitterCard) recs.push({ type: 'warning', category: 'social', message: 'Manca la Twitter Card. Migliora la condivisione su Twitter/X.' });
-
-            if (structuredData.length === 0) recs.push({ type: 'warning', category: 'structured', message: 'Nessuno structured data (Schema.org) trovato. I rich snippets migliorano il CTR.' });
-            else recs.push({ type: 'success', category: 'structured', message: `Trovati ${structuredData.length} blocchi di structured data.` });
-
-            return recs;
-        }
-        
-        function countSyllables(text) {
-            const words = text.toLowerCase().split(/\s+/);
-            let totalSyllables = 0;
-            words.forEach(word => {
-                word = word.replace(/[^a-zàèéìòù]/g, '');
-                if (word.length === 0) return;
-                const vowels = word.match(/[aeiouyàèéìòù]+/g);
-                let syllables = vowels ? vowels.length : 1;
-                if (word.endsWith('e') && syllables > 1) syllables--;
-                totalSyllables += Math.max(1, syllables);
-            });
-            return totalSyllables;
-        }
-
-        function analyzeReadability(title, description) {
-            const fullText = `${title} ${description}`.trim();
-            if (!fullText) return { fleschScore: 0, gradeLevel: 0, difficulty: 'N/D', audience: 'N/D', color: '#6b7280', wordCount: 0, avgWordLength: 0, sentenceCount: 0, avgWordsPerSentence: 0 };
-
-            const sentences = (fullText.match(/[.!?]+/g) || []).length || 1;
-            const words = (fullText.match(/\S+/g) || []).length;
-            const syllables = countSyllables(fullText);
-
-            if (words === 0) return { fleschScore: 0, gradeLevel: 0, difficulty: 'N/D', audience: 'N/D', color: '#6b7280', wordCount: 0, avgWordLength: 0, sentenceCount: 0, avgWordsPerSentence: 0 };
-            
-            const fleschScore = Math.round(Math.max(0, Math.min(100, 206.835 - 1.015 * (words / sentences) - 84.6 * (syllables / words))));
-            const gradeLevel = Math.round(Math.max(0, 0.39 * (words / sentences) + 11.8 * (syllables / words) - 15.59) * 10) / 10;
-            
-            let difficulty, audience, color;
-            if (fleschScore >= 90) { difficulty = 'Molto Facile'; audience = 'Comprensibile da bambini di 11 anni'; color = '#10b981'; }
-            else if (fleschScore >= 80) { difficulty = 'Facile'; audience = 'Studenti scuola media'; color = '#3b82f6'; }
-            else if (fleschScore >= 60) { difficulty = 'Standard'; audience = 'Adulti con istruzione media'; color = '#f59e0b'; }
-            else { difficulty = 'Difficile'; audience = 'Istruzione avanzata'; color = '#ef4444'; }
-            
-            return {
-                fleschScore, gradeLevel, difficulty, audience, color,
-                wordCount: words,
-                avgWordLength: Math.round((fullText.replace(/\s/g, '').length / words) * 10) / 10,
-                sentenceCount: sentences,
-                avgWordsPerSentence: Math.round((words / sentences) * 10) / 10,
-            };
-        }
-
-        function analyzeSentiment(title, description) {
-            const positiveWords = ['ottimo', 'eccellente', 'fantastico', 'migliore', 'gratis', 'garantito', 'facile', 'veloce', 'nuovo', 'esclusivo'];
-            const negativeWords = ['difficile', 'problema', 'errore', 'lento', 'costoso'];
-            const text = `${title} ${description}`.toLowerCase();
-            
-            const positiveCount = positiveWords.filter(w => text.includes(w)).length;
-            const negativeCount = negativeWords.filter(w => text.includes(w)).length;
-
-            let score = 0;
-            if(positiveCount + negativeCount > 0) {
-              score = (positiveCount - negativeCount) / (positiveCount + negativeCount);
-            }
-            
-            let label, color;
-            if (score > 0.3) { label = 'Molto Positivo'; color = '#10b981'; }
-            else if (score > 0) { label = 'Positivo'; color = '#3b82f6'; }
-            else if (score === 0) { label = 'Neutro'; color = '#6b7280'; }
-            else { label = 'Negativo'; color = '#ef4444'; }
-
-            return { score, label, color, positiveCount, negativeCount, triggers: [] };
-        }
-
-        function analyzeKeywordCompetition(currentAnalysis, history) {
-            const currentKeywords = currentAnalysis.allKeywords;
-            const competitorKeywordsList = history
-                .filter(item => item.url !== currentAnalysis.url)
-                .map(item => item.data.allKeywords);
-
-            const competitorFreq = {};
-            competitorKeywordsList.forEach(kwList => {
-                new Set(kwList).forEach(kw => {
-                    competitorFreq[kw] = (competitorFreq[kw] || 0) + 1;
-                });
-            });
-
-            const result = { unique: [], shared: [], competitive: [] };
-            
-            new Set(currentKeywords).forEach(kw => {
-                const count = competitorFreq[kw] || 0;
-                if (count === 0) {
-                    result.unique.push({ keyword: kw, score: 100 });
-                } else if (count <= 2) {
-                    result.shared.push({ keyword: kw, competitorCount: count });
-                } else {
-                    result.competitive.push({ keyword: kw, competitorCount: count });
-                }
-            });
-            
-            return result;
-        }
-
-        function calculateStringSimilarity(str1, str2) {
-            const words1 = new Set(str1.toLowerCase().split(/\s+/));
-            const words2 = new Set(str2.toLowerCase().split(/\s+/));
-            const intersection = new Set([...words1].filter(x => words2.has(x)));
-            const union = new Set([...words1, ...words2]);
-            if (union.size === 0) return 0;
-            return Math.round((intersection.size / union.size) * 100);
-        }
-
-        function detectDuplicates(currentAnalysis, history) {
-            const duplicates = [];
-            const { url, metaTags } = currentAnalysis;
-            const currentTitle = metaTags.title;
-            const currentDesc = metaTags.description;
-
-            history.forEach(item => {
-                if (item.url === url) return;
-
-                const otherTitle = item.data.metaTags.title;
-                const otherDesc = item.data.metaTags.description;
-
-                if (currentTitle && otherTitle) {
-                    const similarity = calculateStringSimilarity(currentTitle, otherTitle);
-                    if (similarity > 80) {
-                        duplicates.push({ url: item.url, type: `Title ${similarity === 100 ? 'Identico' : 'Simile'}`, similarity });
-                    }
-                }
-                
-                if (currentDesc && otherDesc) {
-                    const similarity = calculateStringSimilarity(currentDesc, otherDesc);
-                    if (similarity > 80) {
-                        duplicates.push({ url: item.url, type: `Description ${similarity === 100 ? 'Identica' : 'Simile'}`, similarity });
-                    }
-                }
-            });
-
-            return { hasDuplicates: duplicates.length > 0, duplicates };
-        }
-
-        // --- COMPONENTS ---
-
-        const Header = () => {
-          return (
-            <header className="text-center mb-8 bg-black text-white p-8 rounded-2xl shadow-2xl">
-              <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-                🚀 Analizzatore Meta Tag SEO PRO
-              </h1>
-              <p className="text-sm md:text-base text-white/90 leading-relaxed max-w-3xl mx-auto">
-                Suite completa per analizzare, monitorare e ottimizzare i meta tag del tuo sito. 
-                Include anteprima SERP, social preview, analisi storica, grafici, export PDF e molto altro!
-              </p>
-            </header>
-          );
-        };
-
-        const InputSection = ({ htmlContent, setHtmlContent, handleAnalyze, isLoading, setActiveView }) => {
-          return (
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-7 mb-6 shadow-sm">
-              <label htmlFor="html-input" className="block text-base font-semibold text-gray-900 mb-2">
-                📄 Incolla qui il codice HTML della pagina
-              </label>
-              <div className="flex flex-col gap-3 mb-4">
-                <textarea
-                  id="html-input"
-                  value={htmlContent}
-                  onChange={(e) => setHtmlContent(e.target.value)}
-                  className="w-full h-40 px-4 py-3 text-base border-2 border-gray-300 rounded-lg outline-none transition-all duration-200 bg-white text-gray-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-600/20 font-mono text-sm"
-                  placeholder="<!DOCTYPE html>..."
-                  aria-label="Codice sorgente HTML"
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={handleAnalyze}
-                  disabled={isLoading}
-                  className="w-full sm:w-auto px-8 py-3 text-base font-semibold text-white bg-blue-600 border-none rounded-lg cursor-pointer transition-all duration-200 whitespace-nowrap hover:bg-blue-700 active:scale-95 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center"
-                >
-                  {isLoading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Analisi...
-                    </>
-                  ) : (
-                    '🚀 Analizza HTML'
-                  )}
-                </button>
-              </div>
-              <div className="flex gap-2 sm:gap-3 flex-wrap">
-                <button onClick={() => setActiveView('history')} className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg transition hover:bg-teal-700">
-                  📊 Storico Analisi
-                </button>
-                <button onClick={() => setActiveView('multi-page')} className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg transition hover:bg-teal-700">
-                  📑 Analisi Multi-Pagina
-                </button>
-                <button onClick={() => setActiveView('checklist')} className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg transition hover:bg-teal-700">
-                  ✅ Checklist SEO
-                </button>
-              </div>
-            </div>
-          );
-        };
-
-        const ScoreCard = ({ label, score }) => {
-            const getColor = (s) => {
-                if (s >= 80) return 'text-green-500';
-                if (s >= 50) return 'text-amber-500';
-                return 'text-red-500';
-            };
-            return (
-                <div className="bg-gradient-to-br from-gray-50 to-white border-2 border-gray-200 rounded-xl p-5 text-center">
-                    <div className={`text-4xl sm:text-5xl font-bold mb-2 ${getColor(score)}`}>{score}</div>
-                    <div className="text-sm text-gray-500 font-semibold uppercase tracking-wider">{label}</div>
-                </div>
-            );
-        };
-
-        const OverviewTab = ({ analysis }) => {
-            return (
-                <div className="animate-fade-in-fast">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-6">
-                        <ScoreCard label="Punteggio Generale" score={analysis.scores.overall} />
-                        <ScoreCard label="Title" score={analysis.scores.title} />
-                        <ScoreCard label="Description" score={analysis.scores.description} />
-                        <ScoreCard label="Tecnici" score={analysis.scores.technical} />
-                        <ScoreCard label="Social" score={analysis.scores.social} />
-                    </div>
-                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-                        <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-                          <span className="text-2xl">💡</span> Raccomandazioni Principali
-                        </h3>
-                        <div className="space-y-3">
-                            {analysis.recommendations.map((rec, index) => {
-                                const baseClass = 'p-3.5 border-l-4 rounded-md flex items-start gap-3';
-                                const styles = {
-                                    error: 'bg-red-50 border-red-500 text-red-800',
-                                    warning: 'bg-yellow-50 border-yellow-500 text-yellow-800',
-                                    success: 'bg-green-50 border-green-500 text-green-800'
-                                };
-                                const icons = { error: '❌', warning: '⚠️', success: '✅' };
-
-                                return (
-                                    <div key={index} className={`${baseClass} ${styles[rec.type]}`}>
-                                        <span className="text-xl">{icons[rec.type]}</span>
-                                        <div>
-                                            <p className="font-semibold uppercase text-xs tracking-wider">{rec.category}</p>
-                                            <p className="text-sm">{rec.message}</p>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-        
-        const SerpPreviewTab = ({ analysis }) => {
-            const { metaTags, favicon } = analysis;
-            const title = metaTags.title || 'Titolo mancante';
-            const description = metaTags.description || 'Meta description mancante. Google genererà uno snippet dal contenuto della pagina.';
-            
-            let displayUrl = 'esempio.com/percorso-pagina';
-            if (metaTags.canonical) {
-              try {
-                const urlObject = new URL(metaTags.canonical);
-                displayUrl = urlObject.hostname + urlObject.pathname.replace(/\/$/, '');
-              } catch (e) {
-                // Ignore invalid canonical URL
-              }
-            }
-
-            return (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">🔍 Anteprima Google SERP</h3>
-                    <p className="text-gray-500 mb-6">Ecco una stima di come apparirà il tuo sito nei risultati di ricerca di Google.</p>
-                    <div className="bg-white border border-gray-200 rounded-xl p-6 font-[Arial,sans-serif] max-w-2xl mx-auto">
-                        <div className="flex items-center gap-2 mb-1">
-                            <img src={favicon.standard} alt="favicon" className="w-5 h-5 rounded-full bg-gray-200" onError={(e) => (e.currentTarget.style.display = 'none')} />
-                            <span className="text-sm text-[#202124]">{displayUrl}</span>
-                        </div>
-                        <h3 className="text-xl text-[#1a0dab] group-hover:underline cursor-pointer break-words">
-                            {title.length > 60 ? `${title.substring(0, 60)}...` : title}
-                        </h3>
-                        <p className="text-sm text-[#4d5156] leading-relaxed mt-1 break-words">
-                            {description.length > 160 ? `${description.substring(0, 160)}...` : description}
-                        </p>
-                    </div>
-                    <div className="mt-6 max-w-2xl mx-auto space-y-3">
-                        <div className={`p-3.5 border-l-4 rounded-md ${metaTags.title.length >= 30 && metaTags.title.length <= 70 ? 'bg-green-50 border-green-500' : 'bg-yellow-50 border-yellow-500'}`}>
-                            <p className="font-semibold text-sm">Title</p>
-                            <p className="text-gray-700 text-sm">Lunghezza: {metaTags.title.length} caratteri (consigliati 50-60)</p>
-                        </div>
-                         <div className={`p-3.5 border-l-4 rounded-md ${metaTags.description.length >= 120 && metaTags.description.length <= 160 ? 'bg-green-50 border-green-500' : 'bg-yellow-50 border-yellow-500'}`}>
-                            <p className="font-semibold text-sm">Description</p>
-                            <p className="text-gray-700 text-sm">Lunghezza: {metaTags.description.length} caratteri (consigliati 150-160)</p>
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-        
-        const SocialCard = ({ platform, title, description, imageUrl, siteName }) => (
-            <div className="border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                <div className="p-3 bg-gray-50 border-b border-gray-200 font-semibold text-gray-700">{platform}</div>
-                {imageUrl ? (
-                    <img src={imageUrl} alt="Social preview" className="w-full h-48 object-cover bg-gray-100" />
-                ) : (
-                    <div className="w-full h-48 bg-gray-100 flex items-center justify-center text-gray-400">Immagine non trovata</div>
-                )}
-                <div className="p-4 bg-gray-50/50">
-                    <p className="text-xs uppercase text-gray-500 mb-1">{siteName}</p>
-                    <h4 className="font-bold text-gray-800 mb-1 line-clamp-2">{title}</h4>
-                    <p className="text-sm text-gray-600 line-clamp-3">{description}</p>
-                </div>
-            </div>
-        );
-
-        const SocialPreviewTab = ({ analysis }) => {
-            const { metaTags } = analysis;
-            
-            let siteName = 'esempio.com';
-            const urlToParse = metaTags.ogUrl || metaTags.canonical;
-            if (urlToParse) {
-                try {
-                    siteName = new URL(urlToParse).hostname;
-                } catch (e) {
-                    // Ignore invalid URL
-                }
-            }
-
-            return (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-                     <h3 className="text-xl font-bold text-gray-800 mb-2">📱 Anteprima Social Media</h3>
-                    <p className="text-gray-500 mb-6">Ecco come apparirà il link quando condiviso sui social media.</p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <SocialCard 
-                            platform="📘 Facebook / LinkedIn"
-                            title={metaTags.ogTitle || metaTags.title}
-                            description={metaTags.ogDescription || metaTags.description}
-                            imageUrl={metaTags.ogImage}
-                            siteName={siteName}
-                        />
-                        <SocialCard 
-                            platform="🐦 Twitter / X"
-                            title={metaTags.twitterTitle || metaTags.ogTitle || metaTags.title}
-                            description={metaTags.twitterDescription || metaTags.ogDescription || metaTags.description}
-                            imageUrl={metaTags.twitterImage || metaTags.ogImage}
-                            siteName={siteName}
-                        />
-                    </div>
-                </div>
-            );
-        };
-
-        const InfoItem = ({ label, value, status }) => {
-            const statusClasses = {
-                success: 'border-green-500 bg-green-50',
-                warning: 'border-yellow-500 bg-yellow-50',
-                error: 'border-red-500 bg-red-50',
-                neutral: 'border-gray-300 bg-gray-50',
-            };
-            return (
-                <div className={`p-3.5 border-l-4 rounded-md ${statusClasses[status]}`}>
-                    <p className="text-xs font-semibold uppercase text-gray-500 mb-1">{label}</p>
-                    <div className="text-sm text-gray-800 break-all">{value}</div>
-                </div>
-            );
-        }
-
-        const TechnicalTab = ({ analysis }) => {
-            const { metaTags, security, favicon } = analysis;
-            
-            return (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">⚙️ Meta Tag Tecnici</h3>
-                    <div className="space-y-4">
-                        <InfoItem label="🤖 Robots" value={metaTags.robots || 'Non specificato (default: index, follow)'} status={metaTags.robots?.includes('noindex') ? 'warning' : 'success'} />
-                        <InfoItem label="🔗 Canonical URL" value={metaTags.canonical || 'Non presente'} status={metaTags.canonical ? 'success' : 'warning'} />
-                        <InfoItem label="📱 Viewport" value={metaTags.viewport || 'Non presente'} status={metaTags.viewport ? 'success' : 'error'} />
-                        <InfoItem label="🔤 Charset" value={metaTags.charset || 'Non specificato'} status="neutral" />
-                        <InfoItem label="🌍 Language" value={metaTags.language || 'Non specificato'} status={metaTags.language ? 'neutral' : 'warning'} />
-                        <InfoItem label="🔒 HTTPS" value={security.https ? 'Sito sicuro (HTTPS)' : 'Sito non sicuro o non verificabile'} status={security.https ? 'success' : 'warning'} />
-                        <InfoItem label="🎨 Favicon" value={favicon.standard ? `Trovato` : 'Non trovato'} status={favicon.standard ? 'success' : 'warning'} />
-                    </div>
-                </div>
-            );
-        };
-
-        const StructuredDataTab = ({ analysis }) => {
-            const { structuredData } = analysis;
-
-            return (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">🧩 Structured Data (Schema.org)</h3>
-                    {structuredData.length === 0 ? (
-                        <div className="p-4 bg-yellow-50 border-l-4 border-yellow-400 text-yellow-800">
-                            <p className="font-bold">Nessun dato strutturato trovato.</p>
-                            <p>I "rich snippets" basati su structured data possono migliorare significativamente il tuo CTR.</p>
-                        </div>
-                    ) : (
-                        <>
-                            <p className="text-gray-500 mb-4">Trovati {structuredData.length} blocchi di structured data (JSON-LD).</p>
-                            <div className="space-y-4">
-                                {structuredData.map((data, index) => (
-                                    <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                                        <p className="font-semibold text-gray-700 mb-2">Schema #{index + 1}: <span className="font-bold text-blue-600">{data['@type']}</span></p>
-                                        <pre className="bg-gray-800 text-white p-4 rounded-md text-xs overflow-x-auto">
-                                            {JSON.stringify(data, null, 2)}
-                                        </pre>
-                                    </div>
-                                ))}
-                            </div>
-                        </>
-                    )}
-                </div>
-            );
-        };
-
-        const KeywordsTab = ({ analysis }) => {
-            const { keywords } = analysis;
-
-            return (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">🔤 Analisi Keyword Density</h3>
-                    <p className="text-gray-500 mb-6">Le parole più frequenti nel contenuto della pagina (escluse stop words comuni).</p>
-                    {keywords.length > 0 ? (
-                        <div className="flex flex-wrap gap-3">
-                            {keywords.map((kw, index) => (
-                                <div key={index} className="bg-gray-100 rounded-full px-4 py-2 flex items-center gap-3 text-sm">
-                                    <span className="font-semibold text-gray-800">{kw.word}</span>
-                                    <span className="bg-blue-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">{kw.count}</span>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-gray-500">Nessuna keyword significativa trovata.</p>
-                    )}
-                </div>
-            );
-        };
-
-        const DetailsTab = ({ analysis }) => {
-            const { allMeta } = analysis.metaTags;
-            return (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-                    <h3 className="text-xl font-bold text-gray-800 mb-4">📋 Dettagli Completi: Tutti i Meta Tag</h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-gray-500">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3">Attributo (name/property)</th>
-                                    <th scope="col" className="px-6 py-3">Contenuto</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr className="bg-white border-b">
-                                    <td className="px-6 py-4 font-bold text-gray-900">title</td>
-                                    <td className="px-6 py-4">{analysis.metaTags.title || 'N/A'}</td>
-                                </tr>
-                                {allMeta.map((tag, index) => (
-                                    <tr key={index} className="bg-white border-b">
-                                        <td className="px-6 py-4 font-medium text-gray-900">{tag.name}</td>
-                                        <td className="px-6 py-4 break-all">{tag.content || 'N/A'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            );
-        };
-        
-        const MobilePreviewTab = ({ analysis }) => {
-          const { metaTags } = analysis;
-          
-          let displayUrl = metaTags.canonical || 'esempio.com/pagina';
+      const saveHistory = (history) => {
           try {
-             if (metaTags.canonical) displayUrl = new URL(metaTags.canonical).href;
-          } catch(e) {}
+              localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+          } catch (error) {
+              console.error("Error saving history to localStorage", error);
+          }
+      };
+
+      const getHistory = () => {
+          try {
+              const historyJson = localStorage.getItem(HISTORY_KEY);
+              return historyJson ? JSON.parse(historyJson) : [];
+          } catch (error) {
+              console.error("Error getting history from localStorage", error);
+              return [];
+          }
+      };
+
+      const clearStorageHistory = () => {
+          try {
+              localStorage.removeItem(HISTORY_KEY);
+          } catch (error) {
+              console.error("Error clearing history from localStorage", error);
+          }
+      };
+
+      const saveChecklistState = (state) => {
+          try {
+              localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state));
+          } catch (error) {
+              console.error("Error saving checklist state to localStorage", error);
+          }
+      };
+
+      const getChecklistState = () => {
+          try {
+              const stateJson = localStorage.getItem(CHECKLIST_KEY);
+              return stateJson ? JSON.parse(stateJson) : {};
+          } catch (error) {
+              console.error("Error getting checklist state from localStorage", error);
+              return {};
+          }
+      };
+      // END: services/storageService.ts
+
+      // START: services/seoAnalyzer.ts
+      const STOP_WORDS = new Set(['a', 'an', 'and', 'the', 'in', 'on', 'of', 'for', 'with', 'is', 'are', 'was', 'were', 'it', 'i', 'you', 'he', 'she', 'they', 'to', 'at', 'by', 'from']);
+
+      const getMetaContent = (doc, query, property = 'content') => {
+          const el = doc.querySelector(query);
+          return el ? el.getAttribute(property) : null;
+      };
+
+      const decodeHtmlEntities = (text) => {
+          const textarea = document.createElement('textarea');
+          textarea.innerHTML = text;
+          return textarea.value;
+      };
+
+      const analyzeKeywords = (text) => {
+          if (!text) return [];
+          const wordCounts = {};
+          const words = decodeHtmlEntities(text).toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+          
+          words.forEach(word => {
+              if (word.length > 2 && !STOP_WORDS.has(word)) {
+                  wordCounts[word] = (wordCounts[word] || 0) + 1;
+              }
+          });
+
+          return Object.entries(wordCounts)
+              .sort(([, a], [, b]) => b - a)
+              .slice(0, 10)
+              .map(([keyword, frequency]) => ({ keyword, frequency }));
+      };
+
+      const analyzeSchema = (doc) => {
+          const script = doc.querySelector('script[type="application/ld+json"]');
+          if (!script) return { detected: false, types: [], raw: null };
+
+          try {
+              const json = JSON.parse(script.textContent || '{}');
+              const types = Array.isArray(json) 
+                  ? json.map(item => item['@type']).flat() 
+                  : [json['@type']].flat();
+              
+              return {
+                  detected: true,
+                  types: types.filter(Boolean),
+                  raw: json
+              };
+          } catch (e) {
+              return { detected: true, types: ['Parsing Error'], raw: script.textContent };
+          }
+      };
+
+      const generateRecommendations = (result) => {
+          const recommendations = [];
+          const addRec = (type, message, priority) => recommendations.push({ type, message, priority });
+
+          // Title
+          if (!result.meta.title) addRec('error', 'Title tag is missing. This is critical for SEO.', 1);
+          else {
+              const len = result.meta.title.length;
+              if (len < 30) addRec('warning', `Title is too short (${len} chars). Aim for 30-70 characters.`, 2);
+              else if (len > 70) addRec('warning', `Title is too long (${len} chars). Aim for 30-70 characters. It may be truncated in search results.`, 2);
+              else addRec('good', 'Title tag has an optimal length.', 10);
+          }
+
+          // Description
+          if (!result.meta.description) addRec('error', 'Meta description is missing. This is important for click-through rates.', 1);
+          else {
+              const len = result.meta.description.length;
+              if (len < 120) addRec('warning', `Meta description is too short (${len} chars). Aim for 120-160 characters.`, 3);
+              else if (len > 160) addRec('warning', `Meta description is too long (${len} chars). Aim for 120-160 characters. It may be truncated.`, 3);
+              else addRec('good', 'Meta description has an optimal length.', 10);
+          }
+
+          // Technical
+          if (!result.meta.canonical) addRec('warning', 'Canonical URL is not specified. This can lead to duplicate content issues.', 4);
+          else addRec('good', 'Canonical URL is present.', 10);
+          if (!result.meta.robots) addRec('warning', 'Meta robots tag is missing. It is recommended to explicitly set indexing rules.', 5);
+          else addRec('good', `Meta robots tag is set to: ${result.meta.robots}`, 10);
+          if (!result.meta.viewport) addRec('error', 'Viewport meta tag is missing. This is critical for mobile usability.', 1);
+          else addRec('good', 'Viewport meta tag is correctly set up.', 10);
+          if (!result.schema.detected) addRec('warning', 'No Schema.org structured data (JSON-LD) found. This can enhance search result appearance.', 6);
+          else addRec('good', `Schema.org data found with types: ${result.schema.types.join(', ')}.`, 10);
+          if (result.meta.h1s.length !== 1) addRec('warning', `Found ${result.meta.h1s.length} H1 tags. It's best practice to have exactly one.`, 4);
+          else addRec('good', 'A single H1 tag was found.', 10);
 
 
-          const desktopTitle = metaTags.title.length > 60 ? metaTags.title.substring(0, 60) + '...' : metaTags.title;
-          const mobileTitle = metaTags.title.length > 55 ? metaTags.title.substring(0, 55) + '...' : metaTags.title;
+          // Social
+          if (!result.openGraph.title) addRec('warning', 'Open Graph (og:title) is missing for Facebook sharing.', 7);
+          if (!result.openGraph.description) addRec('warning', 'Open Graph (og:description) is missing.', 7);
+          if (!result.openGraph.image) addRec('warning', 'Open Graph (og:image) is missing. This is crucial for social engagement.', 7);
+          if (!result.twitter.card) addRec('warning', 'Twitter Card (twitter:card) is missing for Twitter sharing.', 8);
+          if (!result.twitter.image && !result.openGraph.image) addRec('warning', 'An image for Twitter (twitter:image or og:image) is missing.', 8);
+          
+          if (result.openGraph.title && result.openGraph.image) addRec('good', 'Open Graph tags for Facebook are well-configured.', 10);
+          if (result.twitter.card && (result.twitter.image || result.openGraph.image)) addRec('good', 'Twitter Card tags are well-configured.', 10);
 
-          const desktopDesc = metaTags.description.length > 160 ? metaTags.description.substring(0, 160) + '...' : metaTags.description;
-          const mobileDesc = metaTags.description.length > 120 ? metaTags.description.substring(0, 120) + '...' : metaTags.description;
+          return recommendations.sort((a, b) => a.priority - b.priority);
+      };
 
-          return (
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">📱 Preview Mobile vs Desktop</h3>
-              <p className="text-gray-500 mb-6">Google tronca i meta tag diversamente su mobile. Verifica che il messaggio chiave sia visibile.</p>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-bold text-lg mb-2 text-center">💻 Desktop</h4>
-                  <div className="p-4 border rounded-lg bg-gray-50 font-[Arial,sans-serif]">
-                    <p className="text-sm text-green-700 truncate">{displayUrl}</p>
-                    <p className="text-xl text-blue-800 hover:underline cursor-pointer">{desktopTitle || 'Titolo Mancante'}</p>
-                    <p className="text-sm text-gray-700">{desktopDesc || 'Descrizione Mancante'}</p>
-                  </div>
-                </div>
-                <div>
-                  <h4 className="font-bold text-lg mb-2 text-center">📱 Mobile</h4>
-                  <div className="p-4 border rounded-lg bg-gray-50 font-[Arial,sans-serif]">
-                    <p className="text-sm text-green-700 truncate">{displayUrl}</p>
-                    <p className="text-lg text-blue-800 hover:underline cursor-pointer">{mobileTitle || 'Titolo Mancante'}</p>
-                    <p className="text-sm text-gray-700">{mobileDesc || 'Descrizione Mancante'}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        };
-        
-        const ReadabilityTab = ({ analysis }) => {
-          const readability = analysis.readability;
-          if (!readability) return <div>Analisi di leggibilità non disponibile.</div>;
+      const analyzeUrl = async (url) => {
+          if (!url || !url.startsWith('http')) {
+              throw new Error('Please enter a valid URL (e.g., https://example.com)');
+          }
 
-          return (
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">📖 Analisi Leggibilità Flesch-Kincaid</h3>
-              <p className="text-gray-500 mb-6">Valuta quanto sono facili da leggere i tuoi meta tag.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
-                <div style={{ backgroundColor: readability.color }} className="text-white rounded-xl p-6">
-                  <div className="text-5xl font-bold">{readability.fleschScore}</div>
-                  <div className="font-semibold mt-1">Flesch Reading Ease</div>
-                  <div className="text-sm mt-2 opacity-90">{readability.difficulty}</div>
-                </div>
-                <div className="border-2 rounded-xl p-6" style={{ borderColor: readability.color }}>
-                  <div className="text-5xl font-bold" style={{ color: readability.color }}>{readability.gradeLevel}</div>
-                  <div className="font-semibold mt-1 text-gray-700">Flesch-Kincaid Grade</div>
-                  <div className="text-sm mt-2 text-gray-500">Livello scolastico richiesto</div>
-                </div>
-              </div>
-               <div className="mt-6 bg-blue-50 border border-blue-200 text-blue-800 rounded-xl p-4 text-center">
-                    <h4 className="font-bold">Pubblico Target</h4>
-                    <p>{readability.audience}</p>
-                </div>
-            </div>
-          );
-        };
-        
-        const SentimentTab = ({ analysis }) => {
-          const sentiment = analysis.sentiment;
-          if (!sentiment) return <div>Analisi del sentiment non disponibile.</div>;
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+          
+          const response = await fetch(proxyUrl);
+          if (!response.ok) {
+              throw new Error(`Failed to fetch the URL. Status: ${response.status}`);
+          }
+          
+          const data = await response.json();
+          const html = data.contents;
+          if (!html) {
+              throw new Error('Could not retrieve HTML content from the provided URL.');
+          }
 
-          return (
-            <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-              <h3 className="text-xl font-bold text-gray-800 mb-2">💭 Analisi Sentiment & Tono Emotivo</h3>
-              <p className="text-gray-500 mb-6">Analizza il tono emotivo e i trigger psicologici nei tuoi meta tag.</p>
-              <div className="text-center mb-6">
-                <div style={{ backgroundColor: sentiment.color }} className="text-white rounded-xl p-6 inline-block">
-                  <div className="text-5xl font-bold">{sentiment.label}</div>
-                  <div className="font-semibold mt-1">Score: {sentiment.score.toFixed(2)}</div>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
-                <div className="bg-green-100 border-2 border-green-300 rounded-xl p-6">
-                  <div className="text-4xl font-bold text-green-800">{sentiment.positiveCount}</div>
-                  <div className="font-semibold mt-1 text-green-700">Parole Positive</div>
-                </div>
-                <div className="bg-red-100 border-2 border-red-300 rounded-xl p-6">
-                  <div className="text-4xl font-bold text-red-800">{sentiment.negativeCount}</div>
-                  <div className="font-semibold mt-1 text-red-700">Parole Negative</div>
-                </div>
-              </div>
-            </div>
-          );
-        };
-        
-        const CompetitionTab = ({ analysis, history }) => {
-            const competitors = history.filter(item => item.url !== analysis.url);
-            if (competitors.length < 1) {
-                return (
-                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm text-center">
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">⚔️ Analisi Competitività Keyword</h3>
-                        <p className="text-gray-500">
-                          Analizza almeno un altro URL per confrontare le keyword e scoprire opportunità.
-                        </p>
-                    </div>
-                );
-            }
-            const competition = analyzeKeywordCompetition(analysis, competitors);
-            return (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">⚔️ Analisi Competitività Keyword</h3>
-                    <p className="text-gray-500 mb-6">Identifica keyword uniche e differenziati dalla concorrenza (confronto con {competitors.length} altre pagine analizzate).</p>
-                    <div className="space-y-6">
-                        <div>
-                            <h4 className="text-lg font-semibold text-green-700 mb-2">🎯 Keyword Uniche (Vantaggio Competitivo)</h4>
-                            {competition.unique.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {competition.unique.map(kw => <span key={kw.keyword} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">{kw.keyword}</span>)}
-                                </div>
-                            ) : <p className="text-gray-500 text-sm">Nessuna keyword unica trovata.</p>}
-                        </div>
-                        <div>
-                            <h4 className="text-lg font-semibold text-blue-700 mb-2">🤝 Keyword Condivise (Bassa Competizione)</h4>
-                             {competition.shared.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {competition.shared.map(kw => <span key={kw.keyword} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">{kw.keyword} ({kw.competitorCount})</span>)}
-                                </div>
-                            ) : <p className="text-gray-500 text-sm">Nessuna keyword a bassa competizione trovata.</p>}
-                        </div>
-                        <div>
-                            <h4 className="text-lg font-semibold text-red-700 mb-2">⚔️ Keyword Competitive (Alta Competizione)</h4>
-                             {competition.competitive.length > 0 ? (
-                                <div className="flex flex-wrap gap-2">
-                                    {competition.competitive.map(kw => <span key={kw.keyword} className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">{kw.keyword} ({kw.competitorCount})</span>)}
-                                </div>
-                            ) : <p className="text-gray-500 text-sm">Nessuna keyword ad alta competizione trovata.</p>}
-                        </div>
-                    </div>
-                </div>
-            );
-        };
-        
-        const DuplicatesTab = ({ analysis, history }) => {
-            const competitors = history.filter(item => item.url !== analysis.url);
-            if (competitors.length < 1) {
-                return (
-                    <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm text-center">
-                        <h3 className="text-xl font-bold text-gray-800 mb-2">🚫 Rilevamento Duplicati</h3>
-                        <p className="text-gray-500">
-                          Analizza almeno un altro URL per verificare la presenza di meta tag duplicati.
-                        </p>
-                    </div>
-                );
-            }
-            const result = detectDuplicates(analysis, history);
-            return (
-                <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm animate-fade-in-fast">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">🚫 Rilevamento Duplicati & Cannibalizzazione</h3>
-                    <p className="text-gray-500 mb-6">Identifica meta tag duplicati o molto simili tra pagine diverse per evitare problemi di cannibalizzazione SEO.</p>
-                    {!result.hasDuplicates ? (
-                        <div className="p-6 bg-green-50 border-2 border-green-300 rounded-xl text-center">
-                            <p className="text-5xl mb-2">✅</p>
-                            <h4 className="text-lg font-bold text-green-800">Nessun Duplicato Rilevato!</h4>
-                            <p className="text-green-700">Ottimo! I tuoi meta tag sono unici rispetto alle altre pagine analizzate.</p>
-                        </div>
-                    ) : (
-                        <div className="space-y-3">
-                            <div className="p-6 bg-red-50 border-2 border-red-300 rounded-xl text-center mb-4">
-                                <p className="text-5xl mb-2">⚠️</p>
-                                <h4 className="text-lg font-bold text-red-800">{result.duplicates.length} Problema(i) Rilevato(i)</h4>
-                                <p className="text-red-700">Hai meta tag duplicati o molto simili che potrebbero confondere i motori di ricerca.</p>
-                            </div>
-                            {result.duplicates.map((dup, index) => (
-                                <div key={index} className={`p-3 border-l-4 rounded-md ${dup.similarity === 100 ? 'bg-red-50 border-red-400' : 'bg-yellow-50 border-yellow-400'}`}>
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <p className="font-semibold">{dup.type}</p>
-                                            <p className="text-sm text-gray-600 truncate max-w-md">con: {dup.url}</p>
-                                        </div>
-                                        <span className="text-sm font-bold">{dup.similarity}% simile</span>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            );
-        };
-        
-        const TABS = [
-            { id: 'overview', label: 'Panoramica', icon: '📊' }, { id: 'serp', label: 'Anteprima SERP', icon: '🔍' },
-            { id: 'social', label: 'Social Preview', icon: '📱' }, { id: 'mobile', label: 'Preview Mobile', icon: '📱' },
-            { id: 'readability', label: 'Leggibilità', icon: '📖' }, { id: 'sentiment', label: 'Sentiment', icon: '💭' },
-            { id: 'competition', label: 'Competizione', icon: '⚔️' }, { id: 'duplicates', label: 'Duplicati', icon: '🚫' },
-            { id: 'keywords', label: 'Keyword Analysis', icon: '🔤' }, { id: 'technical', label: 'Meta Tecnici', icon: '⚙️' },
-            { id: 'structured', label: 'Structured Data', icon: '🧩' }, { id: 'details', label: 'Dettagli Completi', icon: '📋' },
-        ];
-        const AnalysisView = ({ analysis, history }) => {
-            const [activeTab, setActiveTab] = useState('overview');
-            const renderTabContent = () => {
-                switch (activeTab) {
-                    case 'overview': return <OverviewTab analysis={analysis} />;
-                    case 'serp': return <SerpPreviewTab analysis={analysis} />;
-                    case 'social': return <SocialPreviewTab analysis={analysis} />;
-                    case 'technical': return <TechnicalTab analysis={analysis} />;
-                    case 'structured': return <StructuredDataTab analysis={analysis} />;
-                    case 'keywords': return <KeywordsTab analysis={analysis} />;
-                    case 'details': return <DetailsTab analysis={analysis} />;
-                    case 'mobile': return <MobilePreviewTab analysis={analysis} />;
-                    case 'readability': return <ReadabilityTab analysis={analysis} />;
-                    case 'sentiment': return <SentimentTab analysis={analysis} />;
-                    case 'competition': return <CompetitionTab analysis={analysis} history={history} />;
-                    case 'duplicates': return <DuplicatesTab analysis={analysis} history={history} />;
-                    default: return null;
-                }
-            };
-            return (
-                <div className="animate-fade-in">
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2 sm:gap-3 mb-6">
-                        {TABS.map(tab => (
-                            <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`py-3 px-2 text-xs sm:text-sm font-semibold text-white rounded-xl cursor-pointer transition-all duration-300 ease-in-out shadow-md hover:-translate-y-0.5 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-50 flex items-center justify-center gap-2 ${activeTab === tab.id ? 'bg-gradient-to-br from-blue-600 to-blue-700 shadow-xl -translate-y-0.5 ring-blue-500' : 'bg-gradient-to-br from-teal-600 to-teal-700'}`}
-                            >
-                                <span className="hidden sm:inline">{tab.icon}</span>
-                                <span>{tab.label}</span>
-                            </button>
-                        ))}
-                    </div>
-                    <div>{renderTabContent()}</div>
-                </div>
-            );
-        };
-        
-        const HistoryView = ({ history, setHistory, onView }) => {
-            const handleDelete = (index) => {
-                if (window.confirm('Eliminare questa analisi?')) {
-                    const newHistory = history.filter((_, i) => i !== index);
-                    setHistory(newHistory);
-                }
-            };
-            const handleClear = () => {
-                if (window.confirm('Eliminare tutto lo storico? Questa azione non può essere annullata.')) {
-                    setHistory([]);
-                }
-            }
-            if (history.length === 0) {
-                return (
-                    <div className="bg-white border-2 border-gray-200 rounded-2xl p-7 mb-6 shadow-sm text-center">
-                        <h2 className="text-xl font-bold text-gray-800 mb-2">📊 Storico Analisi</h2>
-                        <p className="text-gray-500">Nessuna analisi salvata. Analizza un URL per iniziare!</p>
-                    </div>
-                );
-            }
-            const chartData = history.slice().reverse().map(item => ({
-                name: new Date(item.timestamp).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-                'Punteggio Generale': item.score,
-                'Title': item.data.scores.title,
-                'Description': item.data.scores.description,
-                'Tecnici': item.data.scores.technical,
-                'Social': item.data.scores.social,
-            }));
-            const latestScores = chartData[chartData.length - 1];
-            const breakdownData = latestScores ? [
-                { name: 'Title', Punteggio: latestScores.Title }, { name: 'Desc', Punteggio: latestScores.Description },
-                { name: 'Tecnici', Punteggio: latestScores.Tecnici }, { name: 'Social', Punteggio: latestScores.Social },
-                { name: 'Generale', Punteggio: latestScores['Punteggio Generale'] },
-            ] : [];
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(html, 'text/html');
+          
+          const h1s = Array.from(doc.querySelectorAll('h1')).map(h1 => h1.textContent);
 
-            return (
-                <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-7 mb-6 shadow-sm animate-fade-in">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4">📊 Storico Analisi ({history.length})</h2>
-                    {history.length >= 2 && (
-                        <>
-                            <div className="mb-8">
-                                <h3 className="text-lg font-semibold text-gray-700 mb-4">📈 Evoluzione Punteggi SEO</h3>
-                                <div className="h-72 w-full">
-                                    <ResponsiveContainer>
-                                        <LineChart data={chartData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" />
-                                            <YAxis domain={[0, 100]} />
-                                            <Tooltip />
-                                            <Legend />
-                                            <Line type="monotone" dataKey="Punteggio Generale" stroke="#2563eb" strokeWidth={3} />
-                                            <Line type="monotone" dataKey="Title" stroke="#10b981" />
-                                            <Line type="monotone" dataKey="Description" stroke="#f59e0b" />
-                                        </LineChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                            <div className="mb-8">
-                                <h3 className="text-lg font-semibold text-gray-700 mb-4">📊 Confronto Categorie (Ultima Analisi)</h3>
-                                <div className="h-64 w-full">
-                                    <ResponsiveContainer>
-                                        <BarChart data={breakdownData}>
-                                            <CartesianGrid strokeDasharray="3 3" />
-                                            <XAxis dataKey="name" />
-                                            <YAxis domain={[0, 100]} />
-                                            <Tooltip />
-                                            <Bar dataKey="Punteggio" fill="#8884d8" />
-                                        </BarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                            </div>
-                        </>
-                    )}
-                    <h3 className="text-lg font-semibold text-gray-700 mb-4">📋 Cronologia Completa</h3>
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left text-gray-500">
-                            <thead className="text-xs text-gray-700 uppercase bg-gray-50">
-                                <tr>
-                                    <th scope="col" className="px-6 py-3">URL</th>
-                                    <th scope="col" className="px-6 py-3">Data</th>
-                                    <th scope="col" className="px-6 py-3">Score</th>
-                                    <th scope="col" className="px-6 py-3">Azioni</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {history.map((item, index) => (
-                                    <tr key={index} className="bg-white border-b hover:bg-gray-50">
-                                        <td className="px-6 py-4 font-medium text-gray-900 truncate max-w-xs">{item.url}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">{new Date(item.timestamp).toLocaleString('it-IT')}</td>
-                                        <td className="px-6 py-4">
-                                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${item.score >= 80 ? 'bg-green-100 text-green-800' : item.score >= 50 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'}`}>{item.score}</span>
-                                        </td>
-                                        <td className="px-6 py-4 flex gap-2">
-                                            <button onClick={() => onView(item)} className="font-medium text-blue-600 hover:underline">Visualizza</button>
-                                            <button onClick={() => handleDelete(index)} className="font-medium text-red-600 hover:underline">Elimina</button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                    <div className="mt-6 text-center">
-                        <button onClick={handleClear} className="px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg transition hover:bg-red-700">
-                            🗑️ Cancella Tutto
-                        </button>
-                    </div>
-                </div>
-            );
-        };
-        
-        const MultiPageView = () => {
-          const [htmlContents, setHtmlContents] = useState(['', '']);
-          const [results, setResults] = useState([]);
-          const [isLoading, setIsLoading] = useState(false);
-          const handleContentChange = (index, value) => {
-            const newContents = [...htmlContents];
-            newContents[index] = value;
-            setHtmlContents(newContents);
+          const resultWithoutScores = {
+              url,
+              domain: new URL(url).hostname,
+              meta: {
+                  title: doc.querySelector('title')?.textContent || null,
+                  description: getMetaContent(doc, 'meta[name="description"]'),
+                  keywords: getMetaContent(doc, 'meta[name="keywords"]'),
+                  canonical: doc.querySelector('link[rel="canonical"]')?.href || null,
+                  robots: getMetaContent(doc, 'meta[name="robots"]'),
+                  viewport: getMetaContent(doc, 'meta[name="viewport"]'),
+                  charset: doc.querySelector('meta[charset]')?.getAttribute('charset') || null,
+                  author: getMetaContent(doc, 'meta[name="author"]'),
+                  lang: doc.documentElement.lang || null,
+                  contentType: doc.querySelector('meta[http-equiv="Content-Type"]')?.getAttribute('content') || null,
+                  h1s: h1s,
+              },
+              openGraph: {
+                  title: getMetaContent(doc, 'meta[property="og:title"]'),
+                  description: getMetaContent(doc, 'meta[property="og:description"]'),
+                  image: getMetaContent(doc, 'meta[property="og:image"]'),
+                  url: getMetaContent(doc, 'meta[property="og:url"]'),
+                  type: getMetaContent(doc, 'meta[property="og:type"]'),
+                  site_name: getMetaContent(doc, 'meta[property="og:site_name"]'),
+                  locale: getMetaContent(doc, 'meta[property="og:locale"]'),
+              },
+              twitter: {
+                  card: getMetaContent(doc, 'meta[name="twitter:card"]'),
+                  title: getMetaContent(doc, 'meta[name="twitter:title"]'),
+                  description: getMetaContent(doc, 'meta[name="twitter:description"]'),
+                  image: getMetaContent(doc, 'meta[name="twitter:image"]'),
+                  site: getMetaContent(doc, 'meta[name="twitter:site"]'),
+                  creator: getMetaContent(doc, 'meta[name="twitter:creator"]'),
+              },
+              schema: analyzeSchema(doc),
+              keywords: {
+                  title: analyzeKeywords(doc.querySelector('title')?.textContent || null),
+                  description: analyzeKeywords(getMetaContent(doc, 'meta[name="description"]')),
+              },
+              recommendations: [], // will be populated later
           };
-          const addField = () => setHtmlContents([...htmlContents, '']);
-          const removeField = (index) => setHtmlContents(htmlContents.filter((_, i) => i !== index));
-          const analyzeMultiple = async () => {
-              const validContents = htmlContents.filter(content => content.trim());
-              if (validContents.length === 0) return;
-              setIsLoading(true);
-              setResults([]);
-              const analysisPromises = validContents.map(async (html, index) => {
-                  const url = `analisi-${index + 1}`;
-                  try { return performFullAnalysis(url, html); } 
-                  catch (e) { return { url, error: e.message }; }
-              });
-              const settledResults = await Promise.all(analysisPromises);
-              setResults(settledResults);
-              setIsLoading(false);
+
+          const recommendations = generateRecommendations(resultWithoutScores);
+
+          return {
+              ...resultWithoutScores,
+              recommendations,
+          };
+      };
+      // END: services/seoAnalyzer.ts
+
+      // START: components/Header.tsx
+      const Header = ({ onHistoryClick, onChecklistClick, onExportPdf, isPdfExportable }) => {
+          return (
+              <header className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
+                  <div className="flex items-center space-x-3">
+                      <SparklesIcon className="w-10 h-10 text-indigo-400"/>
+                      <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
+                          SEO Meta Tag Analyzer PRO
+                      </h1>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                      <button 
+                          onClick={onHistoryClick}
+                          className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-indigo-500/30">
+                          <ChartBarIcon className="w-5 h-5"/>
+                          <span>History</span>
+                      </button>
+                      <button 
+                          onClick={onChecklistClick}
+                          className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-indigo-500/30">
+                          <ClipboardDocumentCheckIcon className="w-5 h-5"/>
+                          <span>Checklist</span>
+                      </button>
+                      <button 
+                          onClick={onExportPdf}
+                          disabled={!isPdfExportable}
+                          className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-indigo-500/50 disabled:shadow-none">
+                          <DocumentArrowDownIcon className="w-5 h-5"/>
+                          <span>Export PDF</span>
+                      </button>
+                  </div>
+              </header>
+          );
+      };
+      // END: components/Header.tsx
+
+      // START: components/UrlInputForm.tsx
+      const UrlInputForm = ({ urls, setUrls, onAnalyze, isLoading }) => {
+          
+          const handleUrlChange = (index, value) => {
+              const newUrls = [...urls];
+              newUrls[index] = value;
+              setUrls(newUrls);
+          };
+
+          const addUrlInput = () => {
+              setUrls([...urls, '']);
+          };
+
+          const removeUrlInput = (index) => {
+              if (urls.length > 1) {
+                  const newUrls = urls.filter((_, i) => i !== index);
+                  setUrls(newUrls);
+              }
+          };
+          
+          const handleSubmit = (e) => {
+              e.preventDefault();
+              const validUrls = urls.filter(u => u.trim() !== '');
+              if(validUrls.length > 0) {
+                  onAnalyze(validUrls);
+              }
           };
 
           return (
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-7 mb-6 shadow-sm animate-fade-in">
-              <h2 className="text-xl font-bold text-gray-800 mb-2">📑 Analisi Multi-Pagina</h2>
-              <p className="text-gray-500 mb-4">Incolla il codice HTML di più pagine per confrontarle.</p>
-              <div className="space-y-3 mb-4">
-                {htmlContents.map((content, index) => (
-                  <div key={index} className="flex flex-col sm:flex-row gap-2">
-                    <textarea
-                      value={content}
-                      onChange={(e) => handleContentChange(index, e.target.value)}
-                      placeholder={`Incolla HTML pagina ${index + 1}...`}
-                      className="flex-1 min-w-0 px-4 py-2 text-sm border-2 border-gray-300 rounded-lg outline-none transition-all duration-200 h-24 font-mono"
-                    />
-                    {htmlContents.length > 2 && (
-                      <button onClick={() => removeField(index)} className="px-3 py-2 bg-red-100 text-red-700 rounded-lg font-semibold hover:bg-red-200 self-center">Rimuovi</button>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex gap-3 justify-center">
-                <button onClick={addField} className="px-4 py-2 text-sm font-semibold text-white bg-teal-600 rounded-lg transition hover:bg-teal-700">➕ Aggiungi Campo</button>
-                <button onClick={analyzeMultiple} disabled={isLoading} className="px-4 py-2 text-sm font-semibold text-white bg-blue-600 rounded-lg transition hover:bg-blue-700 disabled:bg-gray-400">
-                  {isLoading ? 'Analisi...' : '🚀 Analizza Tutti'}
-                </button>
-              </div>
-              {isLoading && <p className="text-center mt-4">Analisi in corso...</p>}
-              {results.length > 0 && (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                      {results.map((result, index) => (
-                          <div key={index} className="bg-gray-50 border-2 border-gray-200 rounded-xl p-4">
-                              <p className="font-semibold text-blue-600 truncate mb-2">{`Pagina ${index + 1}`}</p>
-                              {'error' in result ? (
-                                  <p className="text-red-500">❌ {result.error}</p>
-                              ) : (
-                                <div className="space-y-2 text-sm">
-                                   <div className="flex justify-between items-center">
-                                        <span className="font-bold">Score:</span> 
-                                        <span className={`font-bold px-2 py-0.5 rounded-full text-xs ${result.scores.overall > 75 ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>{result.scores.overall}</span>
-                                   </div>
-                                   <div className="p-2 bg-white rounded">
-                                       <p className="font-bold text-gray-500 text-xs">TITLE ({result.metaTags.title.length})</p>
-                                       <p className="text-gray-800 truncate">{result.metaTags.title || 'N/A'}</p>
-                                   </div>
-                                    <div className="p-2 bg-white rounded">
-                                       <p className="font-bold text-gray-500 text-xs">DESC ({result.metaTags.description.length})</p>
-                                       <p className="text-gray-800 line-clamp-2">{result.metaTags.description || 'N/A'}</p>
-                                   </div>
-                                </div>
+              <form onSubmit={handleSubmit} className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl shadow-2xl border border-gray-700">
+                  <div className="space-y-4">
+                      {urls.map((url, index) => (
+                          <div key={index} className="flex items-center space-x-2 animate-fade-in">
+                              <input
+                                  type="url"
+                                  placeholder="https://example.com"
+                                  value={url}
+                                  onChange={(e) => handleUrlChange(index, e.target.value)}
+                                  className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300 placeholder-gray-500"
+                                  required
+                              />
+                              {urls.length > 1 && (
+                                  <button
+                                      type="button"
+                                      onClick={() => removeUrlInput(index)}
+                                      className="p-2 bg-red-800/50 hover:bg-red-700/50 rounded-full text-red-300 transition-colors"
+                                  >
+                                      <TrashIcon className="w-5 h-5"/>
+                                  </button>
                               )}
                           </div>
                       ))}
                   </div>
-              )}
-            </div>
+                  
+                  <div className="flex flex-col md:flex-row justify-between items-center mt-6 space-y-4 md:space-y-0">
+                      <button
+                          type="button"
+                          onClick={addUrlInput}
+                          className="flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 transition-colors font-semibold"
+                      >
+                          <PlusIcon className="w-5 h-5"/>
+                          <span>Add another URL to compare</span>
+                      </button>
+
+                      <button
+                          type="submit"
+                          disabled={isLoading}
+                          className="w-full md:w-auto flex justify-center items-center space-x-3 text-lg font-bold text-white bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 disabled:from-gray-600 disabled:to-gray-500 disabled:cursor-wait px-8 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-cyan-500/30"
+                      >
+                          <MagnifyingGlassIcon className="w-6 h-6"/>
+                          <span>{isLoading ? 'Analyzing...' : `Analyze ${urls.filter(u=>u).length || ''} URL(s)`}</span>
+                      </button>
+                  </div>
+              </form>
           );
-        };
-        
-        const ChecklistView = ({ checklist, setChecklist }) => {
-          const getInitialState = () => {
-            if (checklist && checklist.length === CHECKLIST_ITEMS.length) return checklist;
-            return CHECKLIST_ITEMS.map(item => ({...item, checked: false}));
+      };
+      // END: components/UrlInputForm.tsx
+
+      // START: components/WelcomeScreen.tsx
+      const benefitCards = [
+          {
+              icon: <MagnifyingGlassIcon className="w-8 h-8 mb-4 text-indigo-400" />,
+              title: 'Complete Analysis',
+              description: 'Get a full report on your meta tags, structured data, and more.',
+              target: 'input'
+          },
+          {
+              icon: <DocumentTextIcon className="w-8 h-8 mb-4 text-cyan-400" />,
+              title: 'SERP Preview',
+              description: 'See how your page appears on Google search results.',
+              target: 'serp'
+          },
+          {
+              icon: <ShareIcon className="w-8 h-8 mb-4 text-green-400" />,
+              title: 'Social Previews',
+              description: 'Preview your sharing cards for Facebook, Twitter, and LinkedIn.',
+              target: 'social'
+          },
+          {
+              icon: <ChartPieIcon className="w-8 h-8 mb-4 text-yellow-400" />,
+              title: 'History & Charts',
+              description: 'Track your SEO score over time with detailed analytics.',
+              target: 'history'
+          },
+          {
+              icon: <CheckBadgeIcon className="w-8 h-8 mb-4 text-rose-400" />,
+              title: 'SEO Checklist',
+              description: 'Follow a comprehensive checklist to optimize your site.',
+              target: 'checklist'
+          }
+      ];
+
+      const WelcomeScreen = ({ onCardClick }) => {
+          return (
+              <div className="mt-12 text-center animate-fade-in">
+                  <h2 className="text-4xl font-extrabold text-white mb-4">Unlock Your SEO Potential</h2>
+                  <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10">
+                      Enter a URL above to start a deep analysis of its SEO meta tags, social media presence, and technical health.
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {benefitCards.map((card, index) => (
+                          <div 
+                              key={index} 
+                              onClick={() => onCardClick(card.target)}
+                              className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6 text-left transform hover:-translate-y-2 transition-transform duration-300 cursor-pointer shadow-lg hover:shadow-indigo-500/20 group animate-slide-in-up"
+                              style={{animationDelay: `${index * 100}ms`}}
+                          >
+                              {card.icon}
+                              <h3 className="text-xl font-bold text-white mb-2">{card.title}</h3>
+                              <p className="text-gray-400 mb-4">{card.description}</p>
+                              <div className="flex items-center text-indigo-400 font-semibold group-hover:text-indigo-300 transition-colors">
+                                  <span>Get Started</span>
+                                  <ArrowRightIcon className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          );
+      };
+      // END: components/WelcomeScreen.tsx
+
+      // START: components/Recommendations.tsx
+      const RecommendationItem = ({ rec }) => {
+          const typeClasses = {
+              good: 'border-green-500/50 bg-green-900/20 text-green-300',
+              warning: 'border-yellow-500/50 bg-yellow-900/20 text-yellow-300',
+              error: 'border-red-500/50 bg-red-900/20 text-red-300'
           };
-          const items = getInitialState();
-          const handleToggle = (index) => {
-            const newItems = [...items];
-            newItems[index].checked = !newItems[index].checked;
-            setChecklist(newItems);
-          };
-          const completed = items.filter(item => item.checked).length;
-          const progress = Math.round((completed / items.length) * 100);
+          const icon = {
+              good: <CheckCircleIcon className="w-6 h-6 text-green-400" />,
+              warning: <ExclamationTriangleIcon className="w-6 h-6 text-yellow-400" />,
+              error: <XCircleIcon className="w-6 h-6 text-red-400" />,
+          }
 
           return (
-            <div className="bg-white border-2 border-gray-200 rounded-2xl p-4 sm:p-7 mb-6 shadow-sm animate-fade-in">
-                <h2 className="text-xl font-bold text-gray-800 mb-2">✅ Checklist SEO Completa</h2>
-                <div className="my-4">
-                    <div className="flex justify-between mb-1">
-                        <span className="text-base font-medium text-blue-700">Progresso</span>
-                        <span className="text-sm font-medium text-blue-700">{progress}%</span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2.5">
-                        <div className="bg-blue-600 h-2.5 rounded-full" style={{ width: `${progress}%` }}></div>
-                    </div>
-                     <p className="text-gray-500 text-sm mt-2">Completati: <strong>{completed} / {items.length}</strong></p>
-                </div>
-
-                <div className="space-y-2">
-                    {items.map((item, index) => (
-                        <div key={index} className={`p-3 border rounded-lg transition-all ${item.checked ? 'bg-green-50 border-green-200 opacity-70' : 'bg-gray-50 border-gray-200'}`}>
-                            <label className="flex items-start cursor-pointer">
-                                <input
-                                    type="checkbox"
-                                    checked={item.checked}
-                                    onChange={() => handleToggle(index)}
-                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <div className="ml-3 text-sm">
-                                    <p className={`font-medium ${item.checked ? 'line-through text-gray-500' : 'text-gray-900'}`}>{item.title}</p>
-                                    <p className="text-gray-500">{item.description}</p>
-                                </div>
-                            </label>
-                        </div>
-                    ))}
-                </div>
-            </div>
+              <div className={`flex items-start space-x-4 p-4 border-l-4 rounded-r-lg ${typeClasses[rec.type]} animate-slide-in-up`}>
+                  <div className="flex-shrink-0">{icon[rec.type]}</div>
+                  <p>{rec.message}</p>
+              </div>
           );
-        };
-        
-        const LoadingSpinner = () => (
-          <div className="text-center p-16 bg-white rounded-2xl shadow-md">
-            <div className="w-14 h-14 border-4 border-gray-200 border-t-blue-600 rounded-full animate-spin mx-auto mb-5"></div>
-            <p className="text-base text-gray-500 font-medium">Analisi in corso...</p>
-            <p className="text-sm text-gray-400 mt-2">Recupero e analisi dell'HTML...</p>
-          </div>
-        );
+      };
 
-        const ResultsContainer = ({ isLoading, currentAnalysis, activeView, setActiveView, analysisHistory, setAnalysisHistory, setCurrentAnalysis, checklist, setChecklist }) => {
-            if (isLoading) return <LoadingSpinner />;
-            if (activeView === 'analysis') {
-                if (!currentAnalysis) return null;
-                return <AnalysisView analysis={currentAnalysis} history={analysisHistory} />;
-            }
-            if (activeView === 'history') {
-                return (
-                    <HistoryView
-                        history={analysisHistory}
-                        setHistory={setAnalysisHistory}
-                        onView={(item) => {
-                            setCurrentAnalysis(item.data);
-                            setActiveView('analysis');
-                        }}
-                    />
-                );
-            }
-            if (activeView === 'multi-page') return <MultiPageView />;
-            if (activeView === 'checklist') return <ChecklistView checklist={checklist} setChecklist={setChecklist} />;
-            return null;
-        };
-        
-        // App.tsx
-        const App = () => {
-          const [htmlContent, setHtmlContent] = useState('');
-          const [isLoading, setIsLoading] = useState(false);
-          const [error, setError] = useState(null);
-          const [currentAnalysis, setCurrentAnalysis] = useState(null);
-          const [activeView, setActiveView] = useState('analysis');
-          const [analysisHistory, setAnalysisHistory] = useLocalStorage('ewa-meta-history', []);
-          const [checklist, setChecklist] = useLocalStorage('ewa-meta-checklist', []);
+      const Recommendations = ({ recommendations }) => {
+          const errors = recommendations.filter(r => r.type === 'error');
+          const warnings = recommendations.filter(r => r.type === 'warning');
+          const goods = recommendations.filter(r => r.type === 'good');
+
+          return (
+              <div className="space-y-8">
+                  <div>
+                      <h3 className="text-xl font-bold mb-4 text-red-400">Critical Errors ({errors.length})</h3>
+                      <div className="space-y-3">
+                          {errors.length > 0 ? errors.map((rec, i) => <RecommendationItem key={i} rec={rec} />) : <p className="text-gray-400">No critical errors found. Great job!</p>}
+                      </div>
+                  </div>
+                  <div>
+                      <h3 className="text-xl font-bold mb-4 text-yellow-400">Warnings & Improvements ({warnings.length})</h3>
+                      <div className="space-y-3">
+                          {warnings.length > 0 ? warnings.map((rec, i) => <RecommendationItem key={i} rec={rec} />) : <p className="text-gray-400">No warnings. Everything looks good.</p>}
+                      </div>
+                  </div>
+                  <div>
+                      <h3 className="text-xl font-bold mb-4 text-green-400">Good Practices ({goods.length})</h3>
+                      <div className="space-y-3">
+                          {goods.map((rec, i) => <RecommendationItem key={i} rec={rec} />)}
+                      </div>
+                  </div>
+              </div>
+          );
+      };
+      // END: components/Recommendations.tsx
+
+      // START: components/SerpPreview.tsx
+      const truncate = (str, length) => {
+          if (!str || str.length <= length) return str;
+          return str.substring(0, str.lastIndexOf(' ', length)) + '...';
+      };
+
+      const SerpPreview = ({ result }) => {
+          const displayUrl = result.url.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
+          const breadcrumb = displayUrl.split('/').join(' › ');
+          const title = truncate(result.meta.title || '', 60);
+          const description = truncate(result.meta.description || '', 160);
+
+          return (
+              <div className="bg-gray-800/50 p-6 rounded-xl shadow-lg border border-gray-700 max-w-2xl mx-auto">
+                  <div className="flex items-center mb-4">
+                      <div className="w-7 h-7 mr-2 flex items-center justify-center bg-white rounded-full">
+                          <GoogleIcon className="w-4 h-4" />
+                      </div>
+                      <p className="text-sm text-gray-300">{breadcrumb}</p>
+                  </div>
+                  <h3 className="text-xl text-blue-400 font-medium hover:underline cursor-pointer">
+                      {title || 'No Title Found'}
+                  </h3>
+                  <p className="text-gray-400 mt-1">
+                      {description || 'No meta description found. Google may generate one from your page content.'}
+                  </p>
+              </div>
+          );
+      };
+      // END: components/SerpPreview.tsx
+
+      // START: components/SocialPreviews.tsx
+      const SocialCard = ({ platform, icon, title, description, image, domain }) => {
+          const cardClasses = {
+              Facebook: 'bg-[#1877F2]/10 border-[#1877F2]/30',
+              Twitter: 'bg-[#1DA1F2]/10 border-[#1DA1F2]/30',
+              LinkedIn: 'bg-[#0A66C2]/10 border-[#0A66C2]/30'
+          };
+          
+          return (
+              <div className={`border rounded-lg shadow-lg ${cardClasses[platform]}`}>
+                  <div className="p-4 flex items-center space-x-2 border-b border-inherit">
+                      {icon}
+                      <h3 className="font-bold text-lg">{platform} Preview</h3>
+                  </div>
+                  <div className="p-4">
+                      {image ? (
+                          <img src={image} alt={`${platform} preview`} className="w-full h-auto object-cover rounded-md mb-3 border border-gray-700"
+                              onError={(e) => (e.currentTarget.style.display = 'none')}
+                          />
+                      ) : (
+                          <div className="w-full h-48 bg-gray-700 flex items-center justify-center rounded-md mb-3 text-gray-500">
+                              No Image Provided
+                          </div>
+                      )}
+                      <div className="bg-gray-800 p-3 rounded-md">
+                          <p className="text-gray-500 text-sm uppercase">{domain}</p>
+                          <h4 className="font-bold text-white mt-1">{title || 'No Title Provided'}</h4>
+                          <p className="text-gray-400 text-sm mt-1">{description || 'No Description Provided'}</p>
+                      </div>
+                  </div>
+              </div>
+          );
+      }
+
+      const SocialPreviews = ({ result }) => {
+          return (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                  <SocialCard 
+                      platform="Facebook"
+                      icon={<FacebookIcon className="w-6 h-6 text-[#1877F2]" />}
+                      title={result.openGraph.title || result.meta.title}
+                      description={result.openGraph.description || result.meta.description}
+                      image={result.openGraph.image}
+                      domain={result.domain}
+                  />
+                  <SocialCard 
+                      platform="Twitter"
+                      icon={<TwitterIcon className="w-6 h-6 text-[#1DA1F2]" />}
+                      title={result.twitter.title || result.openGraph.title || result.meta.title}
+                      description={result.twitter.description || result.openGraph.description || result.meta.description}
+                      image={result.twitter.image || result.openGraph.image}
+                      domain={result.domain}
+                  />
+                  <SocialCard 
+                      platform="LinkedIn"
+                      icon={<LinkedInIcon className="w-6 h-6 text-[#0A66C2]" />}
+                      title={result.openGraph.title || result.meta.title} // LinkedIn uses Open Graph
+                      description={result.openGraph.description || result.meta.description}
+                      image={result.openGraph.image}
+                      domain={result.domain}
+                  />
+              </div>
+          );
+      };
+      // END: components/SocialPreviews.tsx
+
+      // START: components/KeywordAnalysis.tsx
+      const KeywordTable = ({title, data}) => (
+          <div className="bg-gray-800/50 p-4 rounded-xl shadow-lg border border-gray-700">
+              <h3 className="text-lg font-bold text-white mb-4">{title}</h3>
+              {data.length > 0 ? (
+                  <table className="w-full text-left">
+                      <thead>
+                          <tr className="border-b border-gray-600">
+                              <th className="p-2">Keyword</th>
+                              <th className="p-2">Frequency</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {data.map(kw => (
+                              <tr key={kw.keyword} className="border-b border-gray-700 last:border-b-0">
+                                  <td className="p-2 capitalize">{kw.keyword}</td>
+                                  <td className="p-2">{kw.frequency}</td>
+                              </tr>
+                          ))}
+                      </tbody>
+                  </table>
+              ) : (
+                  <p className="text-gray-400">No keywords found or content is too short for analysis.</p>
+              )}
+          </div>
+      );
+
+      const KeywordAnalysis = ({ keywords }) => {
+          return (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <KeywordTable title="Keywords from Title" data={keywords.title} />
+                  <KeywordTable title="Keywords from Description" data={keywords.description} />
+              </div>
+          );
+      };
+      // END: components/KeywordAnalysis.tsx
+
+      // START: components/RawDataViewer.tsx
+      const DataSection = ({ title, data }) => {
+          const [copied, setCopied] = useState(false);
+          const dataString = JSON.stringify(data, null, 2);
+
+          const handleCopy = () => {
+              navigator.clipboard.writeText(dataString);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+          };
+
+          return (
+              <div className="bg-gray-800/50 rounded-xl shadow-lg border border-gray-700">
+                  <div className="flex justify-between items-center p-4 border-b border-gray-700">
+                      <h3 className="text-lg font-bold">{title}</h3>
+                      <button onClick={handleCopy} className="text-gray-400 hover:text-white transition-colors">
+                          {copied ? <ClipboardDocumentCheckIcon className="w-5 h-5 text-green-400" /> : <ClipboardDocumentIcon className="w-5 h-5" />}
+                      </button>
+                  </div>
+                  <pre className="p-4 text-sm text-cyan-300 overflow-x-auto bg-gray-900/50 rounded-b-xl">
+                      <code>{dataString}</code>
+                  </pre>
+              </div>
+          );
+      };
+
+      const RawDataViewer = ({ result }) => {
+          const { recommendations, scores, keywords, ...rest } = result;
+          return (
+              <div className="space-y-6">
+                  <DataSection title="Meta Tags" data={result.meta} />
+                  <DataSection title="Open Graph" data={result.openGraph} />
+                  <DataSection title="Twitter Cards" data={result.twitter} />
+                  <DataSection title="Schema.org" data={result.schema} />
+              </div>
+          );
+      };
+      // END: components/RawDataViewer.tsx
+
+      // START: components/AnalysisDashboard.tsx
+      const AnalysisDashboard = ({ result }) => {
+          const [activeTab, setActiveTab] = useState('recommendations');
+          const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+          const dropdownRef = useRef(null);
+
+          const tabs = [
+              { id: 'recommendations', label: 'Recommendations', icon: <LightBulbIcon className="w-5 h-5 mr-2" /> },
+              { id: 'serp', label: 'SERP Preview', icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" /> },
+              { id: 'social', label: 'Social Previews', icon: <ShareIcon className="w-5 h-5 mr-2" /> },
+              { id: 'keywords', label: 'Keyword Analysis', icon: <SparklesIcon className="w-5 h-5 mr-2" /> },
+              { id: 'raw', label: 'Raw Data', icon: <CodeBracketIcon className="w-5 h-5 mr-2" /> },
+          ];
 
           useEffect(() => {
-            if (error) {
-              const timer = setTimeout(() => setError(null), 5000);
-              return () => clearTimeout(timer);
-            }
-          }, [error]);
+            const handleClickOutside = (event) => {
+              if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsDropdownOpen(false);
+              }
+            };
+            document.addEventListener("mousedown", handleClickOutside);
+            return () => {
+              document.removeEventListener("mousedown", handleClickOutside);
+            };
+          }, [dropdownRef]);
 
-          const saveToHistory = (analysis) => {
-            const newHistory = [
-              { url: analysis.url, timestamp: analysis.timestamp, score: analysis.scores.overall, data: analysis },
-              ...analysisHistory
-            ].slice(0, 50);
-            setAnalysisHistory(newHistory);
+          const renderContent = () => {
+              switch (activeTab) {
+                  case 'recommendations': return <Recommendations recommendations={result.recommendations} />;
+                  case 'serp': return <SerpPreview result={result} />;
+                  case 'social': return <SocialPreviews result={result} />;
+                  case 'keywords': return <KeywordAnalysis keywords={result.keywords} />;
+                  case 'raw': return <RawDataViewer result={result} />;
+                  default: return null;
+              }
           };
-
-          const handleAnalyze = useCallback(async () => {
-            if (!htmlContent.trim()) {
-              setError('Per favore, incolla del codice HTML valido');
-              return;
-            }
-            setIsLoading(true);
-            setError(null);
-            setCurrentAnalysis(null);
-            setActiveView('analysis');
-            await new Promise(resolve => setTimeout(resolve, 250));
-            try {
-              const analysis = performFullAnalysis(`analisi-locale-${Date.now()}`, htmlContent);
-              setCurrentAnalysis(analysis);
-              saveToHistory(analysis);
-            } catch (e) {
-              setError(`Errore durante l'analisi: ${e.message}`);
-              setCurrentAnalysis(null);
-            } finally {
-              setIsLoading(false);
-            }
-          }, [htmlContent, analysisHistory, setAnalysisHistory]);
+          
+          const activeTabLabel = tabs.find(tab => tab.id === activeTab)?.label;
 
           return (
-            <div className="p-2 sm:p-5 font-sans leading-relaxed text-gray-800 bg-gray-50 min-h-screen">
-              <div className="max-w-7xl mx-auto">
-                <Header />
-                <main>
-                  <InputSection
-                    htmlContent={htmlContent}
-                    setHtmlContent={setHtmlContent}
-                    handleAnalyze={handleAnalyze}
-                    isLoading={isLoading}
-                    setActiveView={setActiveView}
-                  />
-                  {error && (
-                    <div className="bg-red-100 border border-red-300 rounded-xl p-4 mb-5">
-                      <p className="text-red-800 font-medium">{error}</p>
-                    </div>
-                  )}
-                  <ResultsContainer
-                    isLoading={isLoading}
-                    currentAnalysis={currentAnalysis}
-                    activeView={activeView}
-                    setActiveView={setActiveView}
-                    analysisHistory={analysisHistory}
-                    setAnalysisHistory={setAnalysisHistory}
-                    setCurrentAnalysis={setCurrentAnalysis}
-                    checklist={checklist}
-                    setChecklist={setChecklist}
-                  />
-                </main>
+              <div className="mt-8 animate-fade-in">
+                  <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 space-y-4 md:space-y-0">
+                      <div>
+                          <h2 className="text-2xl font-bold text-white">Analysis for:</h2>
+                          <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 break-all transition-colors">
+                              {result.url}
+                          </a>
+                      </div>
+                      
+                      <div className="relative w-full md:w-64" ref={dropdownRef}>
+                          <button
+                              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                              className="w-full flex items-center justify-between bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg"
+                          >
+                              <span>Showing: <span className="text-indigo-400">{activeTabLabel}</span></span>
+                              <ChevronDownIcon className={`w-5 h-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                          </button>
+                          {isDropdownOpen && (
+                              <div className="absolute top-full mt-2 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-2xl z-10 animate-fade-in">
+                                  {tabs.map(tab => (
+                                      <button
+                                          key={tab.id}
+                                          onClick={() => {
+                                              setActiveTab(tab.id);
+                                              setIsDropdownOpen(false);
+                                          }}
+                                          className="w-full flex items-center text-left px-4 py-3 hover:bg-indigo-600/30 transition-colors first:rounded-t-lg last:rounded-b-lg"
+                                      >
+                                          {tab.icon} {tab.label}
+                                      </button>
+                                  ))}
+                              </div>
+                          )}
+                      </div>
+                  </div>
+                  
+                  <div className="mt-6 p-4 md:p-6 bg-gray-800/30 rounded-lg border border-gray-700/50 animate-fade-in">
+                    {renderContent()}
+                  </div>
               </div>
+          );
+      };
+      // END: components/AnalysisDashboard.tsx
+      
+      // START: components/HistoryModal.tsx
+      const HistoryModal = ({ isVisible, onClose, history, onLoad, onDelete, onClear }) => {
+        if (!isVisible) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
+                <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                    <header className="flex justify-between items-center p-4 border-b border-gray-700">
+                        <h2 className="text-xl font-bold flex items-center"><ChartBarIcon className="w-6 h-6 mr-2 text-indigo-400" />Analysis History</h2>
+                        <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700"><XMarkIcon className="w-6 h-6"/></button>
+                    </header>
+                    
+                    <div className="p-6 flex-grow overflow-y-auto space-y-8">
+                        {history.length > 0 ? (
+                            <div className="space-y-3">
+                                {history.map(item => (
+                                    <div key={item.id} className="bg-gray-700/50 p-3 rounded-lg flex items-center justify-between animate-slide-in-up">
+                                        <div>
+                                            <p className="font-semibold text-white break-all">{item.url}</p>
+                                            <p className="text-sm text-gray-400">{new Date(item.timestamp).toLocaleString()}</p>
+                                        </div>
+                                        <div className="flex items-center space-x-2">
+                                            <button onClick={() => onLoad(item.fullResult)} className="p-2 hover:bg-gray-600 rounded-full" title="Load this analysis"><ArrowPathIcon className="w-5 h-5 text-cyan-400"/></button>
+                                            <button onClick={() => onDelete(item.id)} className="p-2 hover:bg-gray-600 rounded-full" title="Delete this entry"><TrashIcon className="w-5 h-5 text-red-400"/></button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-center text-gray-400 py-10">No history yet. Run an analysis to get started!</p>
+                        )}
+                    </div>
+
+                    {history.length > 0 && (
+                        <footer className="p-4 border-t border-gray-700">
+                            <button onClick={onClear} className="w-full flex items-center justify-center space-x-2 bg-red-800/70 hover:bg-red-700/70 text-red-200 font-semibold py-2 px-4 rounded-lg transition-colors">
+                                <TrashIcon className="w-5 h-5"/>
+                                <span>Clear All History</span>
+                            </button>
+                        </footer>
+                    )}
+                </div>
             </div>
-          );
-        };
+        );
+      };
+      // END: components/HistoryModal.tsx
 
-        // index.tsx -> Renders the App
-        const rootElement = document.getElementById('root');
-        if (rootElement) {
-          const root = createRoot(rootElement);
+      // START: components/ChecklistModal.tsx
+      const CHECKLIST_DATA = [
+          { 
+            title: 'Meta Tag Base', 
+            items: [
+              { id: 'c1', label: 'Title tag exists', validator: (r) => !!r.meta.title },
+              { id: 'c2', label: 'Title is between 30-70 characters', validator: (r) => r.meta.title && r.meta.title.length >= 30 && r.meta.title.length <= 70 },
+              { id: 'c3', label: 'Meta description exists', validator: (r) => !!r.meta.description },
+              { id: 'c4', label: 'Description is between 120-160 characters', validator: (r) => r.meta.description && r.meta.description.length >= 120 && r.meta.description.length <= 160 },
+              { id: 'c5', label: 'A single H1 tag exists', validator: (r) => r.meta.h1s && r.meta.h1s.length === 1 },
+            ]
+          },
+          { 
+            title: 'Social Media', 
+            items: [
+              { id: 's1', label: 'Open Graph (og:title) is present', validator: (r) => !!r.openGraph.title },
+              { id: 's2', label: 'Open Graph (og:description) is present', validator: (r) => !!r.openGraph.description },
+              { id: 's3', label: 'Open Graph (og:image) is present', validator: (r) => !!r.openGraph.image },
+              { id: 's4', label: 'Twitter Card (twitter:card) is configured', validator: (r) => !!r.twitter.card },
+            ]
+          },
+          { 
+            title: 'Technical', 
+            items: [
+              { id: 't1', label: 'Canonical URL is specified', validator: (r) => !!r.meta.canonical },
+              { id: 't2', label: 'Meta robots tag is configured', validator: (r) => !!r.meta.robots },
+              { id: 't3', label: 'Schema.org structured data is implemented', validator: (r) => r.schema.detected },
+              { id: 't4', label: 'XML sitemap is present and submitted', manual: true },
+              { id: 't5', label: 'robots.txt file is valid', manual: true },
+            ]
+          },
+          { 
+            title: 'Performance & Mobile', 
+            items: [
+              { id: 'p3', label: 'Viewport meta tag is present', validator: (r) => !!r.meta.viewport },
+              { id: 'p1', label: 'Page loads in under 3 seconds', manual: true },
+              { id: 'p2', label: 'Images are optimized and compressed', manual: true },
+              { id: 'p4', label: 'Site is mobile-friendly (responsive design)', manual: true },
+            ]
+          },
+      ];
+
+      const ChecklistModal = ({ isVisible, onClose, analysisResult }) => {
+          const autoChecks = useMemo(() => CHECKLIST_DATA.flatMap(c => c.items).filter(i => i.validator), []);
+          const passedChecks = useMemo(() => {
+              if (!analysisResult) return 0;
+              return autoChecks.filter(i => i.validator(analysisResult)).length;
+          }, [analysisResult, autoChecks]);
+          
+          const progress = useMemo(() => (autoChecks.length > 0 ? Math.round((passedChecks / autoChecks.length) * 100) : 0), [passedChecks, autoChecks]);
+
+          if (!isVisible) return null;
+          
+          const renderChecklistItem = (item) => {
+              let statusIcon;
+              let textClass = 'text-gray-300';
+              
+              if(item.validator && analysisResult) {
+                  const passed = item.validator(analysisResult);
+                  if (passed) {
+                      statusIcon = <CheckCircleIcon className="w-5 h-5 text-green-400" />;
+                      textClass = 'text-gray-400';
+                  } else {
+                      statusIcon = <XCircleIcon className="w-5 h-5 text-red-400" />;
+                      textClass = 'text-white font-semibold';
+                  }
+              } else {
+                  statusIcon = <InformationCircleIcon className="w-5 h-5 text-cyan-400" />;
+                  textClass = 'text-gray-300 italic';
+              }
+
+              return (
+                  <div key={item.id} className="flex items-center space-x-3 p-2 rounded-md">
+                      {statusIcon}
+                      <span className={textClass}>{item.label} {item.manual && '(Manual Check)'}</span>
+                  </div>
+              );
+          };
+
+          return (
+              <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
+                  <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                      <header className="flex justify-between items-center p-4 border-b border-gray-700 sticky top-0 bg-gray-800">
+                          <h2 className="text-xl font-bold flex items-center"><ClipboardDocumentCheckIcon className="w-6 h-6 mr-2 text-indigo-400" />Automated SEO Checklist</h2>
+                          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700"><XMarkIcon className="w-6 h-6"/></button>
+                      </header>
+                      
+                      <div className="p-6 flex-grow overflow-y-auto space-y-6">
+                          {analysisResult ? (
+                              CHECKLIST_DATA.map(category => (
+                                  <div key={category.title}>
+                                      <h3 className="text-lg font-semibold text-cyan-400 mb-3">{category.title}</h3>
+                                      <div className="space-y-2">
+                                          {category.items.map(renderChecklistItem)}
+                                      </div>
+                                  </div>
+                              ))
+                          ) : (
+                              <div className="text-center py-10">
+                                  <ClipboardDocumentCheckIcon className="w-16 h-16 mx-auto text-gray-600 mb-4"/>
+                                  <h3 className="text-xl font-semibold text-white">Run an analysis to start</h3>
+                                  <p className="text-gray-400 mt-2">Enter a URL on the main screen to automatically validate it against this checklist.</p>
+                              </div>
+                          )}
+                      </div>
+
+                      <footer className="p-4 border-t border-gray-700 sticky bottom-0 bg-gray-800">
+                          <div className="flex justify-between items-center mb-2">
+                              <span className="font-semibold">Automation Progress ({passedChecks}/{autoChecks.length} passed)</span>
+                              <span className="font-bold text-indigo-400">{progress}%</span>
+                          </div>
+                          <div className="w-full bg-gray-700 rounded-full h-2.5">
+                              <div className="bg-indigo-500 h-2.5 rounded-full" style={{ width: `${progress}%`, transition: 'width 0.5s ease-in-out' }}></div>
+                          </div>
+                      </footer>
+                  </div>
+              </div>
+          );
+      };
+      // END: components/ChecklistModal.tsx
+
+      // START: components/ComparisonTable.tsx
+      const renderCheckmark = (value) => {
+          return value ? <CheckCircleIcon className="w-6 h-6 text-green-400 mx-auto" /> : <XCircleIcon className="w-6 h-6 text-red-400 mx-auto" />;
+      };
+
+      const ComparisonTable = ({ results }) => {
+          const rows = [
+              { label: 'Title', key: 'meta.title', render: (val) => <p className="text-xs max-w-xs truncate" title={val ?? undefined}>{val || 'N/A'}</p> },
+              { label: 'Title Length', key: 'meta.title', render: (val) => val?.length || 0 },
+              { label: 'Description', key: 'meta.description', render: (val) => <p className="text-xs max-w-xs truncate" title={val ?? undefined}>{val || 'N/A'}</p> },
+              { label: 'Desc. Length', key: 'meta.description', render: (val) => val?.length || 0 },
+              { label: 'Canonical URL', key: 'meta.canonical', render: renderCheckmark },
+              { label: 'Meta Robots', key: 'meta.robots', render: (val) => val || 'N/A' },
+              { label: 'Schema Detected', key: 'schema.detected', render: renderCheckmark },
+              { label: 'OG Image', key: 'openGraph.image', render: renderCheckmark },
+              { label: 'Twitter Card', key: 'twitter.card', render: (val) => val || 'N/A' },
+          ];
+          
+          const getNested = (obj, path) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
+
+          return (
+              <div className="mt-8 animate-fade-in">
+                  <h2 className="text-2xl font-bold mb-4 text-white">Comparison Analysis</h2>
+                  <div className="overflow-x-auto bg-gray-800/50 rounded-xl border border-gray-700">
+                      <table className="w-full min-w-max text-sm text-left text-gray-300">
+                          <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
+                              <tr>
+                                  <th scope="col" className="px-6 py-3 sticky left-0 bg-gray-700/50">Metric</th>
+                                  {results.map((result, index) => (
+                                      <th key={index} scope="col" className="px-6 py-3 text-center">
+                                          <a href={result.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400 transition-colors break-all">
+                                            {result.domain}
+                                          </a>
+                                      </th>
+                                  ))}
+                              </tr>
+                          </thead>
+                          <tbody>
+                              {rows.map(row => (
+                                  <tr key={row.label} className="border-b border-gray-700 hover:bg-gray-700/30">
+                                      <th scope="row" className="px-6 py-4 font-medium text-white whitespace-nowrap sticky left-0 bg-gray-800/50">
+                                          {row.label}
+                                      </th>
+                                      {results.map((result, index) => (
+                                          <td key={index} className="px-6 py-4 text-center">
+                                              {row.render(getNested(result, row.key))}
+                                          </td>
+                                      ))}
+                                  </tr>
+                              ))}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+          );
+      };
+      // END: components/ComparisonTable.tsx
+
+      // START: App.tsx
+      const App = () => {
+          const [urls, setUrls] = useState(['']);
+          const [analysisResults, setAnalysisResults] = useState(null);
+          const [isLoading, setIsLoading] = useState(false);
+          const [error, setError] = useState(null);
+          const [history, setHistory] = useState([]);
+          const [isHistoryVisible, setIsHistoryVisible] = useState(false);
+          const [isChecklistVisible, setIsChecklistVisible] = useState(false);
+          
+          const reportRef = useRef(null);
+
+          useEffect(() => {
+              setHistory(getHistory());
+          }, []);
+
+          const handleAnalyze = useCallback(async (urlsToAnalyze) => {
+              setIsLoading(true);
+              setError(null);
+              setAnalysisResults(null);
+              
+              try {
+                  const results = await Promise.all(urlsToAnalyze.map(url => analyzeUrl(url)));
+                  setAnalysisResults(results);
+                  
+                  const newHistoryItems = results.map(result => ({
+                      id: Date.now() + Math.random(),
+                      url: result.url,
+                      timestamp: new Date().toISOString(),
+                      title: result.meta.title || 'N/A',
+                      description: result.meta.description || 'N/A',
+                      fullResult: result, 
+                  }));
+
+                  const updatedHistory = [...newHistoryItems, ...history].slice(0, 50); // Limit history size
+                  setHistory(updatedHistory);
+                  saveHistory(updatedHistory);
+
+              } catch (err) {
+                  setError(err.message || 'An unknown error occurred during analysis.');
+              } finally {
+                  setIsLoading(false);
+              }
+          }, [history]);
+          
+          const clearHistory = () => {
+              clearStorageHistory();
+              setHistory([]);
+              setIsHistoryVisible(false);
+          };
+
+          const deleteHistoryItem = (id) => {
+              const updatedHistory = history.filter(item => item.id !== id);
+              setHistory(updatedHistory);
+              saveHistory(updatedHistory);
+          };
+
+          const loadFromHistory = (result) => {
+              setAnalysisResults([result]);
+              setUrls([result.url]);
+              setIsHistoryVisible(false);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+          };
+
+          const handleExportPdf = useCallback(() => {
+              if (!reportRef.current || !analysisResults || analysisResults.length !== 1) {
+                  alert("Please analyze a single URL to export a PDF report.");
+                  return;
+              }
+
+              const result = analysisResults[0];
+              setIsLoading(true);
+
+              const { jsPDF } = window.jspdf;
+              const pdf = new jsPDF('p', 'mm', 'a4');
+              const reportElement = reportRef.current;
+              
+              window.html2canvas(reportElement, {
+                  scale: 2,
+                  backgroundColor: '#121212',
+                  useCORS: true,
+                  onclone: (document) => {
+                      document.querySelectorAll('*').forEach(el => {
+                          el.style.color = '#e5e7eb';
+                      });
+                  }
+              }).then(canvas => {
+                  const imgData = canvas.toDataURL('image/png');
+                  const imgProps = pdf.getImageProperties(imgData);
+                  const pdfWidth = pdf.internal.pageSize.getWidth();
+                  const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+
+                  let heightLeft = pdfHeight;
+                  let position = 0;
+                  const pageHeight = pdf.internal.pageSize.getHeight();
+
+                  pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                  heightLeft -= pageHeight;
+
+                  while (heightLeft >= 0) {
+                      position = heightLeft - pdfHeight;
+                      pdf.addPage();
+                      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                      heightLeft -= pageHeight;
+                  }
+
+                  pdf.save(`seo-report-${result.url.replace(/https?:\/\//, '').replace(/\//g, '_')}.pdf`);
+                  setIsLoading(false);
+              }).catch(err => {
+                  console.error("Error generating PDF:", err);
+                  alert("Failed to generate PDF report.");
+                  setIsLoading(false);
+              });
+          }, [analysisResults]);
+
+          return (
+              <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-900/30 text-gray-200 p-4 md:p-8">
+                  <div className="max-w-7xl mx-auto">
+                      <Header 
+                          onHistoryClick={() => setIsHistoryVisible(true)} 
+                          onChecklistClick={() => setIsChecklistVisible(true)} 
+                          onExportPdf={handleExportPdf}
+                          isPdfExportable={!!analysisResults && analysisResults.length === 1}
+                      />
+                      <main className="mt-8">
+                          <UrlInputForm 
+                              urls={urls}
+                              setUrls={setUrls}
+                              onAnalyze={handleAnalyze} 
+                              isLoading={isLoading} 
+                          />
+
+                          {error && (
+                              <div className="mt-8 bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg relative animate-fade-in" role="alert">
+                                  <strong className="font-bold">Error: </strong>
+                                  <span className="block sm:inline">{error}</span>
+                              </div>
+                          )}
+
+                          {isLoading && <Loader />}
+                          
+                          {!isLoading && !analysisResults && <WelcomeScreen onCardClick={(target) => { /* handle scroll/navigation */ }} />}
+
+                          {!isLoading && analysisResults && (
+                              <div ref={reportRef} className="p-4 bg-gray-900 rounded-lg">
+                                {analysisResults.length === 1 ? (
+                                      <AnalysisDashboard result={analysisResults[0]} />
+                                ) : (
+                                      <ComparisonTable results={analysisResults} />
+                                )}
+                              </div>
+                          )}
+                      </main>
+
+                      <HistoryModal 
+                          isVisible={isHistoryVisible}
+                          onClose={() => setIsHistoryVisible(false)}
+                          history={history}
+                          onLoad={loadFromHistory}
+                          onDelete={deleteHistoryItem}
+                          onClear={clearHistory}
+                      />
+
+                      <ChecklistModal
+                          isVisible={isChecklistVisible}
+                          onClose={() => setIsChecklistVisible(false)}
+                          analysisResult={analysisResults?.[0]}
+                      />
+                  </div>
+              </div>
+          );
+      };
+      // END: App.tsx
+
+      // START: index.tsx
+      const initializeApp = () => {
+          const rootElement = document.getElementById('root');
+          if (!rootElement) {
+              console.error("SEO Analyzer PRO: Root element not found. Retrying...");
+              // This retry is a fallback for dynamic environments like page builders
+              setTimeout(initializeApp, 100);
+              return;
+          }
+          const root = ReactDOM.createRoot(rootElement);
           root.render(
-            <StrictMode>
+            <React.StrictMode>
               <App />
-            </StrictMode>
+            </React.StrictMode>
           );
-        } else {
-          console.error("Root element not found");
-        }
+      };
 
+      if (document.readyState === 'loading') {
+        // Loading hasn't finished yet
+        document.addEventListener('DOMContentLoaded', initializeApp);
+      } else {
+        // `DOMContentLoaded` has already fired
+        initializeApp();
+      }
+      // END: index.tsx
     </script>
-</body>
+  </body>
 </html>
