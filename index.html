@@ -1,1303 +1,1227 @@
-
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SEO Meta Tag Analyzer PRO</title>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analizzatore Meta Tag - V2 Elementor Fix</title>
+    <!-- 
+        VERSIONE OTTIMIZZATA PER ELEMENTOR / WIDGET HTML.
+        - RISOLTO: Problema cursore e clic sul pulsante "Analizza HTML" (uso di !important e listener robusto).
+        - MIGLIORATO: Reattività generale all'avvio.
+    -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              'gray-900': '#121212',
-              'gray-800': '#1e1e1e',
-              'gray-700': '#2a2a2a',
-              'gray-600': '#3a3a3a',
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'indigo-600': '#4f46e5',
+                        'indigo-700': '#4338ca',
+                        'indigo-50': '#f5f3ff',
+                    },
+                },
             },
-            animation: {
-              'fade-in': 'fadeIn 0.5s ease-in-out',
-              'slide-in-up': 'slideInUp 0.5s cubic-bezier(0.250, 0.460, 0.450, 0.940)',
-            },
-            keyframes: {
-              fadeIn: {
-                '0%': { opacity: 0 },
-                '100%': { opacity: 1 },
-              },
-              slideInUp: {
-                '0%': { transform: 'translateY(20px)', opacity: 0 },
-                '100%': { transform: 'translateY(0)', opacity: 1 },
-              },
-            },
-          },
-        },
-      }
+        }
     </script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  </head>
-  <body class="bg-gray-900 text-gray-200 font-sans">
-    <div id="root"></div>
-    <script type="text/babel">
-      const { useState, useEffect, useCallback, useRef, useMemo } = React;
+    <!-- jsPDF è mantenuto per l'export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f4f7f9;
+        }
+        .loading-dot {
+            animation: dot-flicker 1.4s infinite ease-in-out both;
+        }
+        .loading-dot:nth-child(1) { animation-delay: -0.32s; }
+        .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes dot-flicker {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1.0); }
+        }
+        .tab-button {
+            padding: 0.75rem 1rem; 
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            min-width: 100px;
+            color: #d1d5db; 
+            transition: all 0.2s ease-in-out;
+        }
+        .tab-button:hover {
+            color: #ffffff; 
+        }
+        .tab-button.active {
+            background-color: #fff;
+            color: #4f46e5; 
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        @media (max-width: 640px) {
+            .tab-button {
+                padding: 0.5rem 0.75rem;
+                font-size: 0.75rem; 
+                min-width: unset;
+                flex-grow: 1; 
+            }
+        }
+        .score-circle {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: white;
+            background: linear-gradient(135deg, #4f46e5, #8b5cf6);
+        }
+        
+        /* START: FIX CURSORE E INTERAZIONE (USO DI !IMPORTANT PER ELEMENTOR) */
+        #analyze-button {
+            pointer-events: auto !important; 
+            transition: all 0.15s ease-in-out;
+        }
+        #analyze-button[disabled] {
+            cursor: not-allowed !important;
+            opacity: 0.5 !important;
+        }
+        #analyze-button:not([disabled]) {
+            cursor: pointer !important;
+        }
+        /* END: FIX CURSORE E INTERAZIONE */
+        
+        /* Stili per l'anteprima SERP */
+        .serp-link { color: #1a0dab; }
+        .serp-url { color: #006621; }
+        .serp-description { color: #545454; }
 
-      // START: components/Icons.tsx
-      const MagnifyingGlassIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-        </svg>
-      );
-      const PlusIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-        </svg>
-      );
-      const TrashIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.134-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.067-2.09 1.02-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-        </svg>
-      );
-      const ChartBarIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 0 1 3 19.875v-6.75ZM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V8.625ZM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 0 1-1.125-1.125V4.125Z" />
-        </svg>
-      );
-      const ClipboardDocumentCheckIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.125 2.25h-4.5c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125v-9M10.125 2.25h.375a9 9 0 0 1 9 9v.375M10.125 2.25A3.375 3.375 0 0 1 13.5 5.625v1.5c0 .621.504 1.125 1.125 1.125h1.5a3.375 3.375 0 0 1 3.375 3.375M9 15l2.25 2.25L15 12" />
-        </svg>
-      );
-      const DocumentArrowDownIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-        </svg>
-      );
-      const SparklesIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456Z" />
-        </svg>
-      );
-      const ArrowRightIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-        </svg>
-      );
-      const ChartPieIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6a7.5 7.5 0 1 0 7.5 7.5h-7.5V6Z" /><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 10.5H21A7.5 7.5 0 0 0 13.5 3v7.5Z" /></svg>
-      );
-      const CheckBadgeIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-      );
-      const DocumentTextIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" /></svg>
-      );
-      const ShareIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M7.217 10.907a2.25 2.25 0 1 0 0 2.186m0-2.186c.18.324.283.696.283 1.093s-.103.77-.283 1.093m0-2.186 9.566-5.314m-9.566 7.5 9.566 5.314m0 0a2.25 2.25 0 1 0 3.935 2.186 2.25 2.25 0 0 0-3.935-2.186Zm0-12.814a2.25 2.25 0 1 0 3.933-2.186 2.25 2.25 0 0 0-3.933 2.186Z" /></svg>
-      );
-      const LightBulbIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 18v-5.25m0 0a6.01 6.01 0 0 0 1.5-.189m-1.5.189a6.01 6.01 0 0 1-1.5-.189m3.75 7.478a12.06 12.06 0 0 1-4.5 0m3.75 2.311a7.5 7.5 0 0 1-7.5 0c.412-.623 1.043-1.16 1.753-1.598m13.256 0A12.06 12.06 0 0 1 12 21.75v-2.311m0-11.411a6.01 6.01 0 0 1 2.804.577m-2.804-.577a6.01 6.01 0 0 0-2.804.577m5.608 4.136a12.063 12.063 0 0 1 3.426 0m-3.426 0a6.013 6.013 0 0 1-3.426 0m.334-6.162a3.003 3.003 0 0 1 2.75 0m-2.75 0a3.003 3.003 0 0 0-2.75 0m5.5 0a3.003 3.003 0 0 1 2.75 0m-2.75 0a3.003 3.003 0 0 0-2.75 0" /></svg>
-      );
-      const CodeBracketIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M17.25 6.75 22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3-4.5 16.5" /></svg>
-      );
-      const DocumentMagnifyingGlassIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m5.231 13.481L15 17.25m-4.5-15H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Zm3.75 11.625a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" /></svg>
-      );
-      const CheckCircleIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-      );
-      const XCircleIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg>
-      );
-       const InformationCircleIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" /></svg>
-      );
-      const ExclamationTriangleIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
-      );
-      const GoogleIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className={className}><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/><path fill="none" d="M1 1h22v22H1z"/></svg>
-      );
-      const FacebookIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24"><path fill="currentColor" d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95z"/></svg>
-      );
-      const TwitterIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24"><path fill="currentColor" d="M22.46 6c-.77.35-1.6.58-2.46.67.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.22-1.95-.55v.03c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21c7.35 0 11.37-6.08 11.37-11.37l-.01-.52c.78-.57 1.45-1.28 1.98-2.09z"/></svg>
-      );
-      const LinkedInIcon = ({ className }) => (
-          <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24"><path fill="currentColor" d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.32 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.79M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77Z"/></svg>
-      );
-      const XMarkIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-        </svg>
-      );
-      const ArrowPathIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 11.667 0l3.181-3.183m-4.991-2.696v4.992h-4.992m0 0-3.181-3.183a8.25 8.25 0 0 1 11.667 0l3.181 3.183" />
-        </svg>
-      );
-      const ClipboardDocumentIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m9.375 0-9.375 0" />
-        </svg>
-      );
-      const ChevronDownIcon = ({ className }) => (
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className={className}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-        </svg>
-      );
-      // END: components/Icons.tsx
+        /* Stili per le card Social */
+        .social-card {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #fff;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-width: 100%; 
+            margin: 1rem 0;
+            min-height: 250px; 
+        }
+        .social-img {
+            height: 150px; 
+            background-color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #777;
+            font-style: italic;
+            padding: 10px;
+            text-align: center;
+        }
+        .social-body { padding: 10px 12px; }
+        .social-site { text-transform: uppercase; color: #777; font-size: 0.75rem; }
+        .social-title { font-weight: bold; color: #1d2129; font-size: 1rem; }
+        .social-description { color: #606770; font-size: 0.85rem; }
 
-      // START: components/Loader.tsx
-      const Loader = () => (
-          <div className="flex flex-col items-center justify-center my-16 animate-fade-in">
-              <svg className="animate-spin -ml-1 mr-3 h-10 w-10 text-indigo-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              <p className="mt-4 text-lg font-semibold text-gray-300">Analyzing... this may take a moment.</p>
-          </div>
-      );
-      // END: components/Loader.tsx
+        /* Stili Bar Chart Nativi */
+        .bar-chart-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        .bar-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        .bar-label {
+            width: 80px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #4a5568;
+            flex-shrink: 0;
+        }
+        .bar-track {
+            flex-grow: 1;
+            height: 16px;
+            background-color: #e5e7eb;
+            border-radius: 4px;
+            margin-left: 0.5rem;
+            position: relative;
+        }
+        .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease-out;
+        }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
 
-      // START: services/storageService.ts
-      const HISTORY_KEY = 'seoAnalyzerHistory';
-      const CHECKLIST_KEY = 'seoAnalyzerChecklist';
+    <div id="app-container" class="max-w-7xl mx-auto">
+        <header class="text-center mb-6 p-4 sm:p-6 bg-white shadow-xl rounded-2xl">
+            <h1 class="text-2xl sm:text-4xl font-extrabold text-indigo-700 mb-2">
+                Analizzatore Meta Tag SEO Avanzato
+            </h1>
+            <p class="text-gray-600 text-sm sm:text-base">Incolla il codice sorgente HTML completo per ottenere un'analisi. (Versione Elementor Safe)</p>
+        </header>
 
-      const saveHistory = (history) => {
-          try {
-              localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
-          } catch (error) {
-              console.error("Error saving history to localStorage", error);
-          }
-      };
+        <!-- Input Form and Feature Cards -->
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-8">
+            <!-- Input Card Span -->
+            <div id="input-card" class="col-span-2 md:col-span-4 lg:col-span-4 bg-white p-4 sm:p-8 rounded-2xl shadow-xl">
+                <div class="flex flex-col gap-4">
+                    <textarea
+                        id="html-input"
+                        placeholder="Incolla qui il codice sorgente HTML completo della pagina (tutto, da <html> a </html>)..."
+                        rows="6"
+                        required
+                        class="flex-grow p-3 border-2 border-gray-300 rounded-xl focus:outline-none focus:border-indigo-500 transition duration-150 font-mono text-sm"
+                    ></textarea>
+                    <button
+                        id="analyze-button"
+                        onclick="analyzeHtml()"
+                        disabled 
+                        class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-xl hover:bg-indigo-700 transition duration-150 shadow-lg hover:shadow-xl disabled:opacity-50"
+                    >
+                        Analizza HTML
+                    </button>
+                </div>
+                <div id="error-message" class="mt-3 text-red-600 text-sm hidden"></div>
+            </div>
+            
+            <!-- Feature Cards (Responisve grid: 2 colonne su mobile, 4 su tablet/desktop) -->
+            <div onclick="scrollToTab('serp-preview')" class="bg-white p-4 rounded-xl shadow-lg cursor-pointer hover:shadow-indigo-300/50 transition duration-300 border-l-4 border-indigo-500">
+                <p class="font-bold text-gray-700 text-sm">🔍 Anteprima SERP</p>
+                <p class="text-xs text-gray-500">Simulazione risultato Google.</p>
+            </div>
+            <div onclick="scrollToTab('social-preview')" class="bg-white p-4 rounded-xl shadow-lg cursor-pointer hover:shadow-indigo-300/50 transition duration-300 border-l-4 border-pink-500">
+                <p class="font-bold text-gray-700 text-sm">📱 Social Preview</p>
+                <p class="text-xs text-gray-500">Visualizza card FB/Twitter.</p>
+            </div>
+            <div onclick="scrollToTab('history')" class="bg-white p-4 rounded-xl shadow-lg cursor-pointer hover:shadow-indigo-300/50 transition duration-300 border-l-4 border-green-500">
+                <p class="font-bold text-gray-700 text-sm">📊 Storico & Grafici</p>
+                <p class="text-xs text-gray-500">Evoluzione delle metriche SEO.</p>
+            </div>
+            <div onclick="exportToPdf()" class="bg-white p-4 rounded-xl shadow-lg cursor-pointer hover:shadow-indigo-300/50 transition duration-300 border-l-4 border-yellow-500">
+                <p class="font-bold text-gray-700 text-sm">📄 Export PDF</p>
+                <p class="text-xs text-gray-500">Scarica il report professionale.</p>
+            </div>
+        </div>
 
-      const getHistory = () => {
-          try {
-              const historyJson = localStorage.getItem(HISTORY_KEY);
-              return historyJson ? JSON.parse(historyJson) : [];
-          } catch (error) {
-              console.error("Error getting history from localStorage", error);
-              return [];
-          }
-      };
+        <!-- Loading Indicator -->
+        <div id="loading-indicator" class="text-center p-8 hidden bg-white rounded-xl shadow-xl">
+            <div class="flex justify-center items-center space-x-2">
+                <div class="loading-dot w-4 h-4 bg-indigo-600 rounded-full"></div>
+                <div class="loading-dot w-4 h-4 bg-indigo-600 rounded-full"></div>
+                <div class="loading-dot w-4 h-4 bg-indigo-600 rounded-full"></div>
+            </div>
+            <p class="mt-4 text-indigo-600 font-medium text-lg">Analizzando e calcolando tutti i punteggi...</p>
+        </div>
 
-      const clearStorageHistory = () => {
-          try {
-              localStorage.removeItem(HISTORY_KEY);
-          } catch (error) {
-              console.error("Error clearing history from localStorage", error);
-          }
-      };
+        <!-- Results Area -->
+        <div id="results-container" class="bg-white p-4 sm:p-8 rounded-2xl shadow-xl hidden">
+            <div class="flex flex-col sm:flex-row justify-between items-center mb-6 border-b pb-3">
+                <h2 class="text-xl sm:text-2xl font-bold text-gray-800 mb-3 sm:mb-0">Risultati dell'Analisi</h2>
+                <div id="global-score-display" class="score-circle">N/A</div>
+            </div>
+            <p id="analyzed-url-display" class="text-xs sm:text-sm text-gray-500 mb-6"></p>
 
-      const saveChecklistState = (state) => {
-          try {
-              localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state));
-          } catch (error) {
-              console.error("Error saving checklist state to localStorage", error);
-          }
-      };
+            <!-- Tab Navigation (Responisve: flex-wrap per i tab) -->
+            <div class="flex flex-wrap border-b border-gray-200 mb-6 -mx-1 sm:mx-0 bg-gray-800 rounded-lg shadow-lg p-2">
+                <button class="tab-button active" data-tab="analysis" onclick="changeTab('analysis')">1. Analisi Completa</button>
+                <button class="tab-button" data-tab="serp-preview" onclick="changeTab('serp-preview')">2. SERP</button>
+                <button class="tab-button" data-tab="social-preview" onclick="changeTab('social-preview')">3. Social</button>
+                <button class="tab-button" data-tab="recommendations" onclick="changeTab('recommendations')">4. Raccomandazioni</button>
+                <button class="tab-button" data-tab="structured-data" onclick="changeTab('structured-data')">5. Schema.org</button>
+                <button class="tab-button" data-tab="keywords" onclick="changeTab('keywords')">6. Keyword</button>
+                <button class="tab-button" data-tab="history" onclick="changeTab('history')">7. Storico</button>
+                <button class="tab-button" data-tab="checklist" onclick="changeTab('checklist')">8. Checklist</button>
+            </div>
 
-      const getChecklistState = () => {
-          try {
-              const stateJson = localStorage.getItem(CHECKLIST_KEY);
-              return stateJson ? JSON.parse(stateJson) : {};
-          } catch (error) {
-              console.error("Error getting checklist state from localStorage", error);
-              return {};
-          }
-      };
-      // END: services/storageService.ts
-
-      // START: services/seoAnalyzer.ts
-      const STOP_WORDS = new Set(['a', 'an', 'and', 'the', 'in', 'on', 'of', 'for', 'with', 'is', 'are', 'was', 'were', 'it', 'i', 'you', 'he', 'she', 'they', 'to', 'at', 'by', 'from']);
-
-      const getMetaContent = (doc, query, property = 'content') => {
-          const el = doc.querySelector(query);
-          return el ? el.getAttribute(property) : null;
-      };
-
-      const decodeHtmlEntities = (text) => {
-          const textarea = document.createElement('textarea');
-          textarea.innerHTML = text;
-          return textarea.value;
-      };
-
-      const analyzeKeywords = (text) => {
-          if (!text) return [];
-          const wordCounts = {};
-          const words = decodeHtmlEntities(text).toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
-          
-          words.forEach(word => {
-              if (word.length > 2 && !STOP_WORDS.has(word)) {
-                  wordCounts[word] = (wordCounts[word] || 0) + 1;
-              }
-          });
-
-          return Object.entries(wordCounts)
-              .sort(([, a], [, b]) => b - a)
-              .slice(0, 10)
-              .map(([keyword, frequency]) => ({ keyword, frequency }));
-      };
-
-      const analyzeSchema = (doc) => {
-          const script = doc.querySelector('script[type="application/ld+json"]');
-          if (!script) return { detected: false, types: [], raw: null };
-
-          try {
-              const json = JSON.parse(script.textContent || '{}');
-              const types = Array.isArray(json) 
-                  ? json.map(item => item['@type']).flat() 
-                  : [json['@type']].flat();
-              
-              return {
-                  detected: true,
-                  types: types.filter(Boolean),
-                  raw: json
-              };
-          } catch (e) {
-              return { detected: true, types: ['Parsing Error'], raw: script.textContent };
-          }
-      };
-
-      const generateRecommendations = (result) => {
-          const recommendations = [];
-          const addRec = (type, message, priority) => recommendations.push({ type, message, priority });
-
-          // Title
-          if (!result.meta.title) addRec('error', 'Title tag is missing. This is critical for SEO.', 1);
-          else {
-              const len = result.meta.title.length;
-              if (len < 30) addRec('warning', `Title is too short (${len} chars). Aim for 30-70 characters.`, 2);
-              else if (len > 70) addRec('warning', `Title is too long (${len} chars). Aim for 30-70 characters. It may be truncated in search results.`, 2);
-              else addRec('good', 'Title tag has an optimal length.', 10);
-          }
-
-          // Description
-          if (!result.meta.description) addRec('error', 'Meta description is missing. This is important for click-through rates.', 1);
-          else {
-              const len = result.meta.description.length;
-              if (len < 120) addRec('warning', `Meta description is too short (${len} chars). Aim for 120-160 characters.`, 3);
-              else if (len > 160) addRec('warning', `Meta description is too long (${len} chars). Aim for 120-160 characters. It may be truncated.`, 3);
-              else addRec('good', 'Meta description has an optimal length.', 10);
-          }
-
-          // Technical
-          if (!result.meta.canonical) addRec('warning', 'Canonical URL is not specified. This can lead to duplicate content issues.', 4);
-          else addRec('good', 'Canonical URL is present.', 10);
-          if (!result.meta.robots) addRec('warning', 'Meta robots tag is missing. It is recommended to explicitly set indexing rules.', 5);
-          else addRec('good', `Meta robots tag is set to: ${result.meta.robots}`, 10);
-          if (!result.meta.viewport) addRec('error', 'Viewport meta tag is missing. This is critical for mobile usability.', 1);
-          else addRec('good', 'Viewport meta tag is correctly set up.', 10);
-          if (!result.schema.detected) addRec('warning', 'No Schema.org structured data (JSON-LD) found. This can enhance search result appearance.', 6);
-          else addRec('good', `Schema.org data found with types: ${result.schema.types.join(', ')}.`, 10);
-          if (result.meta.h1s.length !== 1) addRec('warning', `Found ${result.meta.h1s.length} H1 tags. It's best practice to have exactly one.`, 4);
-          else addRec('good', 'A single H1 tag was found.', 10);
-
-
-          // Social
-          if (!result.openGraph.title) addRec('warning', 'Open Graph (og:title) is missing for Facebook sharing.', 7);
-          if (!result.openGraph.description) addRec('warning', 'Open Graph (og:description) is missing.', 7);
-          if (!result.openGraph.image) addRec('warning', 'Open Graph (og:image) is missing. This is crucial for social engagement.', 7);
-          if (!result.twitter.card) addRec('warning', 'Twitter Card (twitter:card) is missing for Twitter sharing.', 8);
-          if (!result.twitter.image && !result.openGraph.image) addRec('warning', 'An image for Twitter (twitter:image or og:image) is missing.', 8);
-          
-          if (result.openGraph.title && result.openGraph.image) addRec('good', 'Open Graph tags for Facebook are well-configured.', 10);
-          if (result.twitter.card && (result.twitter.image || result.openGraph.image)) addRec('good', 'Twitter Card tags are well-configured.', 10);
-
-          return recommendations.sort((a, b) => a.priority - b.priority);
-      };
-
-      const analyzeUrl = async (url) => {
-          if (!url || !url.startsWith('http')) {
-              throw new Error('Please enter a valid URL (e.g., https://example.com)');
-          }
-
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-          
-          const response = await fetch(proxyUrl);
-          if (!response.ok) {
-              throw new Error(`Failed to fetch the URL. Status: ${response.status}`);
-          }
-          
-          const data = await response.json();
-          const html = data.contents;
-          if (!html) {
-              throw new Error('Could not retrieve HTML content from the provided URL.');
-          }
-
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(html, 'text/html');
-          
-          const h1s = Array.from(doc.querySelectorAll('h1')).map(h1 => h1.textContent);
-
-          const resultWithoutScores = {
-              url,
-              domain: new URL(url).hostname,
-              meta: {
-                  title: doc.querySelector('title')?.textContent || null,
-                  description: getMetaContent(doc, 'meta[name="description"]'),
-                  keywords: getMetaContent(doc, 'meta[name="keywords"]'),
-                  canonical: doc.querySelector('link[rel="canonical"]')?.href || null,
-                  robots: getMetaContent(doc, 'meta[name="robots"]'),
-                  viewport: getMetaContent(doc, 'meta[name="viewport"]'),
-                  charset: doc.querySelector('meta[charset]')?.getAttribute('charset') || null,
-                  author: getMetaContent(doc, 'meta[name="author"]'),
-                  lang: doc.documentElement.lang || null,
-                  contentType: doc.querySelector('meta[http-equiv="Content-Type"]')?.getAttribute('content') || null,
-                  h1s: h1s,
-              },
-              openGraph: {
-                  title: getMetaContent(doc, 'meta[property="og:title"]'),
-                  description: getMetaContent(doc, 'meta[property="og:description"]'),
-                  image: getMetaContent(doc, 'meta[property="og:image"]'),
-                  url: getMetaContent(doc, 'meta[property="og:url"]'),
-                  type: getMetaContent(doc, 'meta[property="og:type"]'),
-                  site_name: getMetaContent(doc, 'meta[property="og:site_name"]'),
-                  locale: getMetaContent(doc, 'meta[property="og:locale"]'),
-              },
-              twitter: {
-                  card: getMetaContent(doc, 'meta[name="twitter:card"]'),
-                  title: getMetaContent(doc, 'meta[name="twitter:title"]'),
-                  description: getMetaContent(doc, 'meta[name="twitter:description"]'),
-                  image: getMetaContent(doc, 'meta[name="twitter:image"]'),
-                  site: getMetaContent(doc, 'meta[name="twitter:site"]'),
-                  creator: getMetaContent(doc, 'meta[name="twitter:creator"]'),
-              },
-              schema: analyzeSchema(doc),
-              keywords: {
-                  title: analyzeKeywords(doc.querySelector('title')?.textContent || null),
-                  description: analyzeKeywords(getMetaContent(doc, 'meta[name="description"]')),
-              },
-              recommendations: [], // will be populated later
-          };
-
-          const recommendations = generateRecommendations(resultWithoutScores);
-
-          return {
-              ...resultWithoutScores,
-              recommendations,
-          };
-      };
-      // END: services/seoAnalyzer.ts
-
-      // START: components/Header.tsx
-      const Header = ({ onHistoryClick, onChecklistClick, onExportPdf, isPdfExportable }) => {
-          return (
-              <header className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
-                  <div className="flex items-center space-x-3">
-                      <SparklesIcon className="w-10 h-10 text-indigo-400"/>
-                      <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-cyan-400">
-                          SEO Meta Tag Analyzer PRO
-                      </h1>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                      <button 
-                          onClick={onHistoryClick}
-                          className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-indigo-500/30">
-                          <ChartBarIcon className="w-5 h-5"/>
-                          <span>History</span>
-                      </button>
-                      <button 
-                          onClick={onChecklistClick}
-                          className="flex items-center space-x-2 bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-indigo-500/30">
-                          <ClipboardDocumentCheckIcon className="w-5 h-5"/>
-                          <span>Checklist</span>
-                      </button>
-                      <button 
-                          onClick={onExportPdf}
-                          disabled={!isPdfExportable}
-                          className="flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg hover:shadow-indigo-500/50 disabled:shadow-none">
-                          <DocumentArrowDownIcon className="w-5 h-5"/>
-                          <span>Export PDF</span>
-                      </button>
-                  </div>
-              </header>
-          );
-      };
-      // END: components/Header.tsx
-
-      // START: components/UrlInputForm.tsx
-      const UrlInputForm = ({ urls, setUrls, onAnalyze, isLoading }) => {
-          
-          const handleUrlChange = (index, value) => {
-              const newUrls = [...urls];
-              newUrls[index] = value;
-              setUrls(newUrls);
-          };
-
-          const addUrlInput = () => {
-              setUrls([...urls, '']);
-          };
-
-          const removeUrlInput = (index) => {
-              if (urls.length > 1) {
-                  const newUrls = urls.filter((_, i) => i !== index);
-                  setUrls(newUrls);
-              }
-          };
-          
-          const handleSubmit = (e) => {
-              e.preventDefault();
-              const validUrls = urls.filter(u => u.trim() !== '');
-              if(validUrls.length > 0) {
-                  onAnalyze(validUrls);
-              }
-          };
-
-          return (
-              <form onSubmit={handleSubmit} className="bg-gray-800/50 backdrop-blur-sm p-6 rounded-xl shadow-2xl border border-gray-700">
-                  <div className="space-y-4">
-                      {urls.map((url, index) => (
-                          <div key={index} className="flex items-center space-x-2 animate-fade-in">
-                              <input
-                                  type="url"
-                                  placeholder="https://example.com"
-                                  value={url}
-                                  onChange={(e) => handleUrlChange(index, e.target.value)}
-                                  className="w-full bg-gray-900 border border-gray-600 rounded-lg px-4 py-3 text-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all duration-300 placeholder-gray-500"
-                                  required
-                              />
-                              {urls.length > 1 && (
-                                  <button
-                                      type="button"
-                                      onClick={() => removeUrlInput(index)}
-                                      className="p-2 bg-red-800/50 hover:bg-red-700/50 rounded-full text-red-300 transition-colors"
-                                  >
-                                      <TrashIcon className="w-5 h-5"/>
-                                  </button>
-                              )}
-                          </div>
-                      ))}
-                  </div>
-                  
-                  <div className="flex flex-col md:flex-row justify-between items-center mt-6 space-y-4 md:space-y-0">
-                      <button
-                          type="button"
-                          onClick={addUrlInput}
-                          className="flex items-center space-x-2 text-indigo-400 hover:text-indigo-300 transition-colors font-semibold"
-                      >
-                          <PlusIcon className="w-5 h-5"/>
-                          <span>Add another URL to compare</span>
-                      </button>
-
-                      <button
-                          type="submit"
-                          disabled={isLoading}
-                          className="w-full md:w-auto flex justify-center items-center space-x-3 text-lg font-bold text-white bg-gradient-to-r from-indigo-600 to-cyan-500 hover:from-indigo-500 hover:to-cyan-400 disabled:from-gray-600 disabled:to-gray-500 disabled:cursor-wait px-8 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-lg hover:shadow-cyan-500/30"
-                      >
-                          <MagnifyingGlassIcon className="w-6 h-6"/>
-                          <span>{isLoading ? 'Analyzing...' : `Analyze ${urls.filter(u=>u).length || ''} URL(s)`}</span>
-                      </button>
-                  </div>
-              </form>
-          );
-      };
-      // END: components/UrlInputForm.tsx
-
-      // START: components/WelcomeScreen.tsx
-      const benefitCards = [
-          {
-              icon: <MagnifyingGlassIcon className="w-8 h-8 mb-4 text-indigo-400" />,
-              title: 'Complete Analysis',
-              description: 'Get a full report on your meta tags, structured data, and more.',
-              target: 'input'
-          },
-          {
-              icon: <DocumentTextIcon className="w-8 h-8 mb-4 text-cyan-400" />,
-              title: 'SERP Preview',
-              description: 'See how your page appears on Google search results.',
-              target: 'serp'
-          },
-          {
-              icon: <ShareIcon className="w-8 h-8 mb-4 text-green-400" />,
-              title: 'Social Previews',
-              description: 'Preview your sharing cards for Facebook, Twitter, and LinkedIn.',
-              target: 'social'
-          },
-          {
-              icon: <ChartPieIcon className="w-8 h-8 mb-4 text-yellow-400" />,
-              title: 'History & Charts',
-              description: 'Track your SEO score over time with detailed analytics.',
-              target: 'history'
-          },
-          {
-              icon: <CheckBadgeIcon className="w-8 h-8 mb-4 text-rose-400" />,
-              title: 'SEO Checklist',
-              description: 'Follow a comprehensive checklist to optimize your site.',
-              target: 'checklist'
-          }
-      ];
-
-      const WelcomeScreen = ({ onCardClick }) => {
-          return (
-              <div className="mt-12 text-center animate-fade-in">
-                  <h2 className="text-4xl font-extrabold text-white mb-4">Unlock Your SEO Potential</h2>
-                  <p className="text-lg text-gray-400 max-w-2xl mx-auto mb-10">
-                      Enter a URL above to start a deep analysis of its SEO meta tags, social media presence, and technical health.
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {benefitCards.map((card, index) => (
-                          <div 
-                              key={index} 
-                              onClick={() => onCardClick(card.target)}
-                              className="bg-gray-800/50 backdrop-blur-sm border border-gray-700 rounded-xl p-6 text-left transform hover:-translate-y-2 transition-transform duration-300 cursor-pointer shadow-lg hover:shadow-indigo-500/20 group animate-slide-in-up"
-                              style={{animationDelay: `${index * 100}ms`}}
-                          >
-                              {card.icon}
-                              <h3 className="text-xl font-bold text-white mb-2">{card.title}</h3>
-                              <p className="text-gray-400 mb-4">{card.description}</p>
-                              <div className="flex items-center text-indigo-400 font-semibold group-hover:text-indigo-300 transition-colors">
-                                  <span>Get Started</span>
-                                  <ArrowRightIcon className="w-5 h-5 ml-2 transform group-hover:translate-x-1 transition-transform" />
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-              </div>
-          );
-      };
-      // END: components/WelcomeScreen.tsx
-
-      // START: components/Recommendations.tsx
-      const RecommendationItem = ({ rec }) => {
-          const typeClasses = {
-              good: 'border-green-500/50 bg-green-900/20 text-green-300',
-              warning: 'border-yellow-500/50 bg-yellow-900/20 text-yellow-300',
-              error: 'border-red-500/50 bg-red-900/20 text-red-300'
-          };
-          const icon = {
-              good: <CheckCircleIcon className="w-6 h-6 text-green-400" />,
-              warning: <ExclamationTriangleIcon className="w-6 h-6 text-yellow-400" />,
-              error: <XCircleIcon className="w-6 h-6 text-red-400" />,
-          }
-
-          return (
-              <div className={`flex items-start space-x-4 p-4 border-l-4 rounded-r-lg ${typeClasses[rec.type]} animate-slide-in-up`}>
-                  <div className="flex-shrink-0">{icon[rec.type]}</div>
-                  <p>{rec.message}</p>
-              </div>
-          );
-      };
-
-      const Recommendations = ({ recommendations }) => {
-          const errors = recommendations.filter(r => r.type === 'error');
-          const warnings = recommendations.filter(r => r.type === 'warning');
-          const goods = recommendations.filter(r => r.type === 'good');
-
-          return (
-              <div className="space-y-8">
-                  <div>
-                      <h3 className="text-xl font-bold mb-4 text-red-400">Critical Errors ({errors.length})</h3>
-                      <div className="space-y-3">
-                          {errors.length > 0 ? errors.map((rec, i) => <RecommendationItem key={i} rec={rec} />) : <p className="text-gray-400">No critical errors found. Great job!</p>}
-                      </div>
-                  </div>
-                  <div>
-                      <h3 className="text-xl font-bold mb-4 text-yellow-400">Warnings & Improvements ({warnings.length})</h3>
-                      <div className="space-y-3">
-                          {warnings.length > 0 ? warnings.map((rec, i) => <RecommendationItem key={i} rec={rec} />) : <p className="text-gray-400">No warnings. Everything looks good.</p>}
-                      </div>
-                  </div>
-                  <div>
-                      <h3 className="text-xl font-bold mb-4 text-green-400">Good Practices ({goods.length})</h3>
-                      <div className="space-y-3">
-                          {goods.map((rec, i) => <RecommendationItem key={i} rec={rec} />)}
-                      </div>
-                  </div>
-              </div>
-          );
-      };
-      // END: components/Recommendations.tsx
-
-      // START: components/SerpPreview.tsx
-      const truncate = (str, length) => {
-          if (!str || str.length <= length) return str;
-          return str.substring(0, str.lastIndexOf(' ', length)) + '...';
-      };
-
-      const SerpPreview = ({ result }) => {
-          const displayUrl = result.url.replace(/^(https?:\/\/)?(www\.)?/, '').replace(/\/$/, '');
-          const breadcrumb = displayUrl.split('/').join(' › ');
-          const title = truncate(result.meta.title || '', 60);
-          const description = truncate(result.meta.description || '', 160);
-
-          return (
-              <div className="bg-gray-800/50 p-6 rounded-xl shadow-lg border border-gray-700 max-w-2xl mx-auto">
-                  <div className="flex items-center mb-4">
-                      <div className="w-7 h-7 mr-2 flex items-center justify-center bg-white rounded-full">
-                          <GoogleIcon className="w-4 h-4" />
-                      </div>
-                      <p className="text-sm text-gray-300">{breadcrumb}</p>
-                  </div>
-                  <h3 className="text-xl text-blue-400 font-medium hover:underline cursor-pointer">
-                      {title || 'No Title Found'}
-                  </h3>
-                  <p className="text-gray-400 mt-1">
-                      {description || 'No meta description found. Google may generate one from your page content.'}
-                  </p>
-              </div>
-          );
-      };
-      // END: components/SerpPreview.tsx
-
-      // START: components/SocialPreviews.tsx
-      const SocialCard = ({ platform, icon, title, description, image, domain }) => {
-          const cardClasses = {
-              Facebook: 'bg-[#1877F2]/10 border-[#1877F2]/30',
-              Twitter: 'bg-[#1DA1F2]/10 border-[#1DA1F2]/30',
-              LinkedIn: 'bg-[#0A66C2]/10 border-[#0A66C2]/30'
-          };
-          
-          return (
-              <div className={`border rounded-lg shadow-lg ${cardClasses[platform]}`}>
-                  <div className="p-4 flex items-center space-x-2 border-b border-inherit">
-                      {icon}
-                      <h3 className="font-bold text-lg">{platform} Preview</h3>
-                  </div>
-                  <div className="p-4">
-                      {image ? (
-                          <img src={image} alt={`${platform} preview`} className="w-full h-auto object-cover rounded-md mb-3 border border-gray-700"
-                              onError={(e) => (e.currentTarget.style.display = 'none')}
-                          />
-                      ) : (
-                          <div className="w-full h-48 bg-gray-700 flex items-center justify-center rounded-md mb-3 text-gray-500">
-                              No Image Provided
-                          </div>
-                      )}
-                      <div className="bg-gray-800 p-3 rounded-md">
-                          <p className="text-gray-500 text-sm uppercase">{domain}</p>
-                          <h4 className="font-bold text-white mt-1">{title || 'No Title Provided'}</h4>
-                          <p className="text-gray-400 text-sm mt-1">{description || 'No Description Provided'}</p>
-                      </div>
-                  </div>
-              </div>
-          );
-      }
-
-      const SocialPreviews = ({ result }) => {
-          return (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                  <SocialCard 
-                      platform="Facebook"
-                      icon={<FacebookIcon className="w-6 h-6 text-[#1877F2]" />}
-                      title={result.openGraph.title || result.meta.title}
-                      description={result.openGraph.description || result.meta.description}
-                      image={result.openGraph.image}
-                      domain={result.domain}
-                  />
-                  <SocialCard 
-                      platform="Twitter"
-                      icon={<TwitterIcon className="w-6 h-6 text-[#1DA1F2]" />}
-                      title={result.twitter.title || result.openGraph.title || result.meta.title}
-                      description={result.twitter.description || result.openGraph.description || result.meta.description}
-                      image={result.twitter.image || result.openGraph.image}
-                      domain={result.domain}
-                  />
-                  <SocialCard 
-                      platform="LinkedIn"
-                      icon={<LinkedInIcon className="w-6 h-6 text-[#0A66C2]" />}
-                      title={result.openGraph.title || result.meta.title} // LinkedIn uses Open Graph
-                      description={result.openGraph.description || result.meta.description}
-                      image={result.openGraph.image}
-                      domain={result.domain}
-                  />
-              </div>
-          );
-      };
-      // END: components/SocialPreviews.tsx
-
-      // START: components/KeywordAnalysis.tsx
-      const KeywordTable = ({title, data}) => (
-          <div className="bg-gray-800/50 p-4 rounded-xl shadow-lg border border-gray-700">
-              <h3 className="text-lg font-bold text-white mb-4">{title}</h3>
-              {data.length > 0 ? (
-                  <table className="w-full text-left">
-                      <thead>
-                          <tr className="border-b border-gray-600">
-                              <th className="p-2">Keyword</th>
-                              <th className="p-2">Frequency</th>
-                          </tr>
-                      </thead>
-                      <tbody>
-                          {data.map(kw => (
-                              <tr key={kw.keyword} className="border-b border-gray-700 last:border-b-0">
-                                  <td className="p-2 capitalize">{kw.keyword}</td>
-                                  <td className="p-2">{kw.frequency}</td>
-                              </tr>
-                          ))}
-                      </tbody>
-                  </table>
-              ) : (
-                  <p className="text-gray-400">No keywords found or content is too short for analysis.</p>
-              )}
-          </div>
-      );
-
-      const KeywordAnalysis = ({ keywords }) => {
-          return (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <KeywordTable title="Keywords from Title" data={keywords.title} />
-                  <KeywordTable title="Keywords from Description" data={keywords.description} />
-              </div>
-          );
-      };
-      // END: components/KeywordAnalysis.tsx
-
-      // START: components/RawDataViewer.tsx
-      const DataSection = ({ title, data }) => {
-          const [copied, setCopied] = useState(false);
-          const dataString = JSON.stringify(data, null, 2);
-
-          const handleCopy = () => {
-              navigator.clipboard.writeText(dataString);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 2000);
-          };
-
-          return (
-              <div className="bg-gray-800/50 rounded-xl shadow-lg border border-gray-700">
-                  <div className="flex justify-between items-center p-4 border-b border-gray-700">
-                      <h3 className="text-lg font-bold">{title}</h3>
-                      <button onClick={handleCopy} className="text-gray-400 hover:text-white transition-colors">
-                          {copied ? <ClipboardDocumentCheckIcon className="w-5 h-5 text-green-400" /> : <ClipboardDocumentIcon className="w-5 h-5" />}
-                      </button>
-                  </div>
-                  <pre className="p-4 text-sm text-cyan-300 overflow-x-auto bg-gray-900/50 rounded-b-xl">
-                      <code>{dataString}</code>
-                  </pre>
-              </div>
-          );
-      };
-
-      const RawDataViewer = ({ result }) => {
-          const { recommendations, scores, keywords, ...rest } = result;
-          return (
-              <div className="space-y-6">
-                  <DataSection title="Meta Tags" data={result.meta} />
-                  <DataSection title="Open Graph" data={result.openGraph} />
-                  <DataSection title="Twitter Cards" data={result.twitter} />
-                  <DataSection title="Schema.org" data={result.schema} />
-              </div>
-          );
-      };
-      // END: components/RawDataViewer.tsx
-
-      // START: components/AnalysisDashboard.tsx
-      const AnalysisDashboard = ({ result }) => {
-          const [activeTab, setActiveTab] = useState('recommendations');
-          const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-          const dropdownRef = useRef(null);
-
-          const tabs = [
-              { id: 'recommendations', label: 'Recommendations', icon: <LightBulbIcon className="w-5 h-5 mr-2" /> },
-              { id: 'serp', label: 'SERP Preview', icon: <DocumentMagnifyingGlassIcon className="w-5 h-5 mr-2" /> },
-              { id: 'social', label: 'Social Previews', icon: <ShareIcon className="w-5 h-5 mr-2" /> },
-              { id: 'keywords', label: 'Keyword Analysis', icon: <SparklesIcon className="w-5 h-5 mr-2" /> },
-              { id: 'raw', label: 'Raw Data', icon: <CodeBracketIcon className="w-5 h-5 mr-2" /> },
-          ];
-
-          useEffect(() => {
-            const handleClickOutside = (event) => {
-              if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                setIsDropdownOpen(false);
-              }
-            };
-            document.addEventListener("mousedown", handleClickOutside);
-            return () => {
-              document.removeEventListener("mousedown", handleClickOutside);
-            };
-          }, [dropdownRef]);
-
-          const renderContent = () => {
-              switch (activeTab) {
-                  case 'recommendations': return <Recommendations recommendations={result.recommendations} />;
-                  case 'serp': return <SerpPreview result={result} />;
-                  case 'social': return <SocialPreviews result={result} />;
-                  case 'keywords': return <KeywordAnalysis keywords={result.keywords} />;
-                  case 'raw': return <RawDataViewer result={result} />;
-                  default: return null;
-              }
-          };
-          
-          const activeTabLabel = tabs.find(tab => tab.id === activeTab)?.label;
-
-          return (
-              <div className="mt-8 animate-fade-in">
-                  <div className="flex flex-col md:flex-row justify-between md:items-center mb-6 space-y-4 md:space-y-0">
-                      <div>
-                          <h2 className="text-2xl font-bold text-white">Analysis for:</h2>
-                          <a href={result.url} target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 break-all transition-colors">
-                              {result.url}
-                          </a>
-                      </div>
-                      
-                      <div className="relative w-full md:w-64" ref={dropdownRef}>
-                          <button
-                              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                              className="w-full flex items-center justify-between bg-gray-800 hover:bg-gray-700 text-gray-300 font-semibold py-2 px-4 rounded-lg transition-all duration-300 shadow-lg"
-                          >
-                              <span>Showing: <span className="text-indigo-400">{activeTabLabel}</span></span>
-                              <ChevronDownIcon className={`w-5 h-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
-                          </button>
-                          {isDropdownOpen && (
-                              <div className="absolute top-full mt-2 w-full bg-gray-800 border border-gray-700 rounded-lg shadow-2xl z-10 animate-fade-in">
-                                  {tabs.map(tab => (
-                                      <button
-                                          key={tab.id}
-                                          onClick={() => {
-                                              setActiveTab(tab.id);
-                                              setIsDropdownOpen(false);
-                                          }}
-                                          className="w-full flex items-center text-left px-4 py-3 hover:bg-indigo-600/30 transition-colors first:rounded-t-lg last:rounded-b-lg"
-                                      >
-                                          {tab.icon} {tab.label}
-                                      </button>
-                                  ))}
-                              </div>
-                          )}
-                      </div>
-                  </div>
-                  
-                  <div className="mt-6 p-4 md:p-6 bg-gray-800/30 rounded-lg border border-gray-700/50 animate-fade-in">
-                    {renderContent()}
-                  </div>
-              </div>
-          );
-      };
-      // END: components/AnalysisDashboard.tsx
-      
-      // START: components/HistoryModal.tsx
-      const HistoryModal = ({ isVisible, onClose, history, onLoad, onDelete, onClear }) => {
-        if (!isVisible) return null;
-
-        return (
-            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
-                <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                    <header className="flex justify-between items-center p-4 border-b border-gray-700">
-                        <h2 className="text-xl font-bold flex items-center"><ChartBarIcon className="w-6 h-6 mr-2 text-indigo-400" />Analysis History</h2>
-                        <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700"><XMarkIcon className="w-6 h-6"/></button>
-                    </header>
-                    
-                    <div className="p-6 flex-grow overflow-y-auto space-y-8">
-                        {history.length > 0 ? (
-                            <div className="space-y-3">
-                                {history.map(item => (
-                                    <div key={item.id} className="bg-gray-700/50 p-3 rounded-lg flex items-center justify-between animate-slide-in-up">
-                                        <div>
-                                            <p className="font-semibold text-white break-all">{item.url}</p>
-                                            <p className="text-sm text-gray-400">{new Date(item.timestamp).toLocaleString()}</p>
-                                        </div>
-                                        <div className="flex items-center space-x-2">
-                                            <button onClick={() => onLoad(item.fullResult)} className="p-2 hover:bg-gray-600 rounded-full" title="Load this analysis"><ArrowPathIcon className="w-5 h-5 text-cyan-400"/></button>
-                                            <button onClick={() => onDelete(item.id)} className="p-2 hover:bg-gray-600 rounded-full" title="Delete this entry"><TrashIcon className="w-5 h-5 text-red-400"/></button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="text-center text-gray-400 py-10">No history yet. Run an analysis to get started!</p>
-                        )}
-                    </div>
-
-                    {history.length > 0 && (
-                        <footer className="p-4 border-t border-gray-700">
-                            <button onClick={onClear} className="w-full flex items-center justify-center space-x-2 bg-red-800/70 hover:bg-red-700/70 text-red-200 font-semibold py-2 px-4 rounded-lg transition-colors">
-                                <TrashIcon className="w-5 h-5"/>
-                                <span>Clear All History</span>
-                            </button>
-                        </footer>
-                    )}
+            <!-- TAB 1: Analisi Completa -->
+            <div id="tab-analysis" class="tab-content">
+                <div id="score-breakdown" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                    <!-- Score cards injected here -->
+                </div>
+                <div id="meta-results-tables">
+                    <!-- Meta Tag Base, OG, Twitter tables injected here -->
                 </div>
             </div>
-        );
-      };
-      // END: components/HistoryModal.tsx
 
-      // START: components/ChecklistModal.tsx
-      const CHECKLIST_DATA = [
-          { 
-            title: 'Meta Tag Base', 
-            items: [
-              { id: 'c1', label: 'Title tag exists', validator: (r) => !!r.meta.title },
-              { id: 'c2', label: 'Title is between 30-70 characters', validator: (r) => r.meta.title && r.meta.title.length >= 30 && r.meta.title.length <= 70 },
-              { id: 'c3', label: 'Meta description exists', validator: (r) => !!r.meta.description },
-              { id: 'c4', label: 'Description is between 120-160 characters', validator: (r) => r.meta.description && r.meta.description.length >= 120 && r.meta.description.length <= 160 },
-              { id: 'c5', label: 'A single H1 tag exists', validator: (r) => r.meta.h1s && r.meta.h1s.length === 1 },
-            ]
-          },
-          { 
-            title: 'Social Media', 
-            items: [
-              { id: 's1', label: 'Open Graph (og:title) is present', validator: (r) => !!r.openGraph.title },
-              { id: 's2', label: 'Open Graph (og:description) is present', validator: (r) => !!r.openGraph.description },
-              { id: 's3', label: 'Open Graph (og:image) is present', validator: (r) => !!r.openGraph.image },
-              { id: 's4', label: 'Twitter Card (twitter:card) is configured', validator: (r) => !!r.twitter.card },
-            ]
-          },
-          { 
-            title: 'Technical', 
-            items: [
-              { id: 't1', label: 'Canonical URL is specified', validator: (r) => !!r.meta.canonical },
-              { id: 't2', label: 'Meta robots tag is configured', validator: (r) => !!r.meta.robots },
-              { id: 't3', label: 'Schema.org structured data is implemented', validator: (r) => r.schema.detected },
-              { id: 't4', label: 'XML sitemap is present and submitted', manual: true },
-              { id: 't5', label: 'robots.txt file is valid', manual: true },
-            ]
-          },
-          { 
-            title: 'Performance & Mobile', 
-            items: [
-              { id: 'p3', label: 'Viewport meta tag is present', validator: (r) => !!r.meta.viewport },
-              { id: 'p1', label: 'Page loads in under 3 seconds', manual: true },
-              { id: 'p2', label: 'Images are optimized and compressed', manual: true },
-              { id: 'p4', label: 'Site is mobile-friendly (responsive design)', manual: true },
-            ]
-          },
-      ];
+            <!-- TAB 2: Anteprima SERP (Centrato su desktop, largo su mobile) -->
+            <div id="tab-serp-preview" class="tab-content hidden">
+                <h3 class="text-xl font-bold mb-4">Anteprima Risultato Google SERP</h3>
+                <div id="serp-preview-content" class="p-4 border border-gray-200 rounded-xl shadow-inner max-w-xl mx-auto">
+                    <p class="serp-url text-sm mb-1" id="serp-breadcrumb">simulazione-analisi/incollato/codice-sorgente</p>
+                    <a href="#" class="serp-link text-xl font-medium" id="serp-title"></a>
+                    <p class="serp-description text-sm mt-1" id="serp-description"></p>
+                </div>
+                <div class="mt-4 p-4 border rounded-xl max-w-xl mx-auto">
+                    <p id="title-char-count" class="text-sm"></p>
+                    <p id="desc-char-count" class="text-sm"></p>
+                </div>
+            </div>
 
-      const ChecklistModal = ({ isVisible, onClose, analysisResult }) => {
-          const autoChecks = useMemo(() => CHECKLIST_DATA.flatMap(c => c.items).filter(i => i.validator), []);
-          const passedChecks = useMemo(() => {
-              if (!analysisResult) return 0;
-              return autoChecks.filter(i => i.validator(analysisResult)).length;
-          }, [analysisResult, autoChecks]);
-          
-          const progress = useMemo(() => (autoChecks.length > 0 ? Math.round((passedChecks / autoChecks.length) * 100) : 0), [passedChecks, autoChecks]);
+            <!-- TAB 3: Anteprima Social (Responisve: 1 colonna su mobile, 3 su desktop) -->
+            <div id="tab-social-preview" class="tab-content hidden">
+                <h3 class="text-xl font-bold mb-4">Anteprime Condivisione Social</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div id="facebook-preview"></div>
+                    <div id="twitter-preview"></div>
+                    <div id="linkedin-preview"></div>
+                </div>
+            </div>
+            
+            <!-- TAB 4: Raccomandazioni -->
+            <div id="tab-recommendations" class="tab-content hidden">
+                <h3 class="text-xl font-bold mb-4">Raccomandazioni SEO Intelligenti</h3>
+                <div id="recommendations-list" class="space-y-4">
+                    <!-- Raccomandazioni iniettate qui -->
+                </div>
+            </div>
 
-          if (!isVisible) return null;
-          
-          const renderChecklistItem = (item) => {
-              let statusIcon;
-              let textClass = 'text-gray-300';
-              
-              if(item.validator && analysisResult) {
-                  const passed = item.validator(analysisResult);
-                  if (passed) {
-                      statusIcon = <CheckCircleIcon className="w-5 h-5 text-green-400" />;
-                      textClass = 'text-gray-400';
-                  } else {
-                      statusIcon = <XCircleIcon className="w-5 h-5 text-red-400" />;
-                      textClass = 'text-white font-semibold';
-                  }
-              } else {
-                  statusIcon = <InformationCircleIcon className="w-5 h-5 text-cyan-400" />;
-                  textClass = 'text-gray-300 italic';
-              }
+            <!-- TAB 5: Schema.org -->
+            <div id="tab-structured-data" class="tab-content hidden">
+                <h3 class="text-xl font-bold mb-4">Rilevamento Dati Strutturati (JSON-LD)</h3>
+                <div id="structured-data-output" class="bg-gray-100 p-4 rounded-lg overflow-x-auto text-sm">
+                    <p class="text-gray-500">Nessun dato strutturato JSON-LD trovato.</p>
+                </div>
+            </div>
 
-              return (
-                  <div key={item.id} className="flex items-center space-x-3 p-2 rounded-md">
-                      {statusIcon}
-                      <span className={textClass}>{item.label} {item.manual && '(Manual Check)'}</span>
-                  </div>
-              );
-          };
+            <!-- TAB 6: Keyword Analysis (Responisve: 1 colonna su mobile, 2 su desktop) -->
+            <div id="tab-keywords" class="tab-content hidden">
+                <h3 class="text-xl font-bold mb-4">Analisi e Densità Keyword</h3>
+                <div id="keyword-analysis-output" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div>
+                        <h4 class="font-semibold mb-2">Keyword Estratte (Title & Description)</h4>
+                        <ul id="keyword-list" class="list-disc list-inside bg-gray-50 p-4 rounded-lg"></ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold mb-2">Statistiche Densità Keyword</h4>
+                        <div id="density-stats" class="bg-gray-50 p-4 rounded-lg"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TAB 7: Storico & Grafici (Responisve: 1 colonna su mobile, 2 su desktop) -->
+            <div id="tab-history" class="tab-content hidden">
+                <h3 class="text-xl font-bold mb-4">Storico Analisi e Confronto Categorie</h3>
+                <div id="history-charts" class="mb-8">
+                    <!-- GRAFICO 1: Confronto Categorie (NATIVO HTML/TAILWIND) -->
+                    <div class="p-4 border rounded-xl shadow-md mb-6">
+                        <h4 class="text-lg font-semibold mb-3">Confronto Categorie (Ultima Analisi)</h4>
+                        <div id="categoryComparisonChart" class="bar-chart-container">
+                            <p class="text-gray-500">Esegui un'analisi per visualizzare il grafico.</p>
+                        </div>
+                    </div>
+                    <!-- GRAFICO 2: Evoluzione Score (NATIVO HTML/TAILWIND) -->
+                    <div class="p-4 border rounded-xl shadow-md">
+                        <h4 class="text-lg font-semibold mb-3">Evoluzione Punteggio Generale (Ultimi 5)</h4>
+                        <div id="scoreEvolutionChart">
+                            <p class="text-gray-500">Esegui analisi multiple per visualizzare l'evoluzione.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <h4 class="font-semibold mb-2">Analisi Precedenti</h4>
+                <div id="history-list" class="space-y-2">
+                    <!-- Storico iniettato qui -->
+                </div>
+            </div>
 
-          return (
-              <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
-                  <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-                      <header className="flex justify-between items-center p-4 border-b border-gray-700 sticky top-0 bg-gray-800">
-                          <h2 className="text-xl font-bold flex items-center"><ClipboardDocumentCheckIcon className="w-6 h-6 mr-2 text-indigo-400" />Automated SEO Checklist</h2>
-                          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-700"><XMarkIcon className="w-6 h-6"/></button>
-                      </header>
-                      
-                      <div className="p-6 flex-grow overflow-y-auto space-y-6">
-                          {analysisResult ? (
-                              CHECKLIST_DATA.map(category => (
-                                  <div key={category.title}>
-                                      <h3 className="text-lg font-semibold text-cyan-400 mb-3">{category.title}</h3>
-                                      <div className="space-y-2">
-                                          {category.items.map(renderChecklistItem)}
-                                      </div>
-                                  </div>
-                              ))
-                          ) : (
-                              <div className="text-center py-10">
-                                  <ClipboardDocumentCheckIcon className="w-16 h-16 mx-auto text-gray-600 mb-4"/>
-                                  <h3 className="text-xl font-semibold text-white">Run an analysis to start</h3>
-                                  <p className="text-gray-400 mt-2">Enter a URL on the main screen to automatically validate it against this checklist.</p>
-                              </div>
-                          )}
-                      </div>
+            <!-- TAB 8: Checklist SEO -->
+            <div id="tab-checklist" class="tab-content hidden">
+                <h3 class="text-xl font-bold mb-4">Checklist SEO Interattiva</h3>
+                <div id="checklist-container" class="space-y-3 p-4 bg-gray-50 rounded-xl">
+                    <div class="mb-4">
+                        <div id="progress-bar-container" class="h-4 bg-gray-200 rounded-full">
+                            <div id="progress-bar" class="h-4 bg-green-500 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                        </div>
+                        <p id="progress-text" class="text-right text-sm mt-1 text-green-700 font-medium">0% Completato</p>
+                    </div>
+                    <!-- Items iniettati qui -->
+                </div>
+            </div>
 
-                      <footer className="p-4 border-t border-gray-700 sticky bottom-0 bg-gray-800">
-                          <div className="flex justify-between items-center mb-2">
-                              <span className="font-semibold">Automation Progress ({passedChecks}/{autoChecks.length} passed)</span>
-                              <span className="font-bold text-indigo-400">{progress}%</span>
-                          </div>
-                          <div className="w-full bg-gray-700 rounded-full h-2.5">
-                              <div className="bg-indigo-500 h-2.5 rounded-full" style={{ width: `${progress}%`, transition: 'width 0.5s ease-in-out' }}></div>
-                          </div>
-                      </footer>
-                  </div>
-              </div>
-          );
-      };
-      // END: components/ChecklistModal.tsx
+        </div>
+    </div>
 
-      // START: components/ComparisonTable.tsx
-      const renderCheckmark = (value) => {
-          return value ? <CheckCircleIcon className="w-6 h-6 text-green-400 mx-auto" /> : <XCircleIcon className="w-6 h-6 text-red-400 mx-auto" />;
-      };
+    <script>
+        // Variabili globali
+        const HISTORY_KEY = 'seo_analyzer_history';
+        const CHECKLIST_KEY = 'seo_checklist_state';
 
-      const ComparisonTable = ({ results }) => {
-          const rows = [
-              { label: 'Title', key: 'meta.title', render: (val) => <p className="text-xs max-w-xs truncate" title={val ?? undefined}>{val || 'N/A'}</p> },
-              { label: 'Title Length', key: 'meta.title', render: (val) => val?.length || 0 },
-              { label: 'Description', key: 'meta.description', render: (val) => <p className="text-xs max-w-xs truncate" title={val ?? undefined}>{val || 'N/A'}</p> },
-              { label: 'Desc. Length', key: 'meta.description', render: (val) => val?.length || 0 },
-              { label: 'Canonical URL', key: 'meta.canonical', render: renderCheckmark },
-              { label: 'Meta Robots', key: 'meta.robots', render: (val) => val || 'N/A' },
-              { label: 'Schema Detected', key: 'schema.detected', render: renderCheckmark },
-              { label: 'OG Image', key: 'openGraph.image', render: renderCheckmark },
-              { label: 'Twitter Card', key: 'twitter.card', render: (val) => val || 'N/A' },
-          ];
-          
-          const getNested = (obj, path) => path.split('.').reduce((acc, part) => acc && acc[part], obj);
+        // --- Core Functions ---
 
-          return (
-              <div className="mt-8 animate-fade-in">
-                  <h2 className="text-2xl font-bold mb-4 text-white">Comparison Analysis</h2>
-                  <div className="overflow-x-auto bg-gray-800/50 rounded-xl border border-gray-700">
-                      <table className="w-full min-w-max text-sm text-left text-gray-300">
-                          <thead className="text-xs text-gray-400 uppercase bg-gray-700/50">
-                              <tr>
-                                  <th scope="col" className="px-6 py-3 sticky left-0 bg-gray-700/50">Metric</th>
-                                  {results.map((result, index) => (
-                                      <th key={index} scope="col" className="px-6 py-3 text-center">
-                                          <a href={result.url} target="_blank" rel="noopener noreferrer" className="hover:text-indigo-400 transition-colors break-all">
-                                            {result.domain}
-                                          </a>
-                                      </th>
-                                  ))}
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {rows.map(row => (
-                                  <tr key={row.label} className="border-b border-gray-700 hover:bg-gray-700/30">
-                                      <th scope="row" className="px-6 py-4 font-medium text-white whitespace-nowrap sticky left-0 bg-gray-800/50">
-                                          {row.label}
-                                      </th>
-                                      {results.map((result, index) => (
-                                          <td key={index} className="px-6 py-4 text-center">
-                                              {row.render(getNested(result, row.key))}
-                                          </td>
-                                      ))}
-                                  </tr>
-                              ))}
-                          </tbody>
-                      </table>
-                  </div>
-              </div>
-          );
-      };
-      // END: components/ComparisonTable.tsx
+        function getMetaContent(doc, attribute, value, contentAttr = 'content') {
+            const selector = `meta[${attribute}="${value}"]`;
+            const element = doc.querySelector(selector);
+            return element ? element.getAttribute(contentAttr) : null;
+        }
 
-      // START: App.tsx
-      const App = () => {
-          const [urls, setUrls] = useState(['']);
-          const [analysisResults, setAnalysisResults] = useState(null);
-          const [isLoading, setIsLoading] = useState(false);
-          const [error, setError] = useState(null);
-          const [history, setHistory] = useState([]);
-          const [isHistoryVisible, setIsHistoryVisible] = useState(false);
-          const [isChecklistVisible, setIsChecklistVisible] = useState(false);
-          
-          const reportRef = useRef(null);
+        function parseHtml(html) {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
 
-          useEffect(() => {
-              setHistory(getHistory());
-          }, []);
+            const data = {};
 
-          const handleAnalyze = useCallback(async (urlsToAnalyze) => {
-              setIsLoading(true);
-              setError(null);
-              setAnalysisResults(null);
-              
-              try {
-                  const results = await Promise.all(urlsToAnalyze.map(url => analyzeUrl(url)));
-                  setAnalysisResults(results);
-                  
-                  const newHistoryItems = results.map(result => ({
-                      id: Date.now() + Math.random(),
-                      url: result.url,
-                      timestamp: new Date().toISOString(),
-                      title: result.meta.title || 'N/A',
-                      description: result.meta.description || 'N/A',
-                      fullResult: result, 
-                  }));
+            // 1. Meta Tag Base (1)
+            data.title = doc.title || '';
+            data.description = getMetaContent(doc, 'name', 'description') || '';
+            data.keywords = getMetaContent(doc, 'name', 'keywords') || '';
+            data.canonical = doc.querySelector('link[rel="canonical"]')?.href || '';
+            data.robots = doc.querySelector('meta[name="robots"]') ? doc.querySelector('meta[name="robots"]').getAttribute('content') : 'N/A';
+            data.viewport = getMetaContent(doc, 'name', 'viewport') || 'N/A';
+            data.charset = doc.querySelector('meta[charset]')?.getAttribute('charset') || 'N/A';
+            data.author = getMetaContent(doc, 'name', 'author') || 'N/A';
+            data.lang = doc.querySelector('html')?.lang || 'N/A';
+            data.contentType = getMetaContent(doc, 'http-equiv', 'Content-Type') || 'N/A';
+            
+            // 2. Open Graph (Facebook) (2)
+            data.og_title = getMetaContent(doc, 'property', 'og:title') || '';
+            data.og_description = getMetaContent(doc, 'property', 'og:description') || '';
+            data.og_image = getMetaContent(doc, 'property', 'og:image') || '';
+            data.og_url = getMetaContent(doc, 'property', 'og:url') || '';
+            data.og_type = getMetaContent(doc, 'property', 'og:type') || '';
+            data.og_site_name = getMetaContent(doc, 'property', 'og:site_name') || '';
+            data.og_locale = getMetaContent(doc, 'property', 'og:locale') || '';
 
-                  const updatedHistory = [...newHistoryItems, ...history].slice(0, 50); // Limit history size
-                  setHistory(updatedHistory);
-                  saveHistory(updatedHistory);
+            // 3. Twitter Cards (3)
+            data.twitter_card = getMetaContent(doc, 'name', 'twitter:card') || '';
+            data.twitter_title = getMetaContent(doc, 'name', 'twitter:title') || '';
+            data.twitter_description = getMetaContent(doc, 'name', 'twitter:description') || '';
+            data.twitter_image = getMetaContent(doc, 'name', 'twitter:image') || '';
+            data.twitter_site = getMetaContent(doc, 'name', 'twitter:site') || '';
+            data.twitter_creator = getMetaContent(doc, 'name', 'twitter:creator') || '';
 
-              } catch (err) {
-                  setError(err.message || 'An unknown error occurred during analysis.');
-              } finally {
-                  setIsLoading(false);
-              }
-          }, [history]);
-          
-          const clearHistory = () => {
-              clearStorageHistory();
-              setHistory([]);
-              setIsHistoryVisible(false);
-          };
+            // 7. Schema.org / Structured Data
+            const jsonLdScripts = Array.from(doc.querySelectorAll('script[type="application/ld+json"]'));
+            data.json_ld = jsonLdScripts.map(script => {
+                try {
+                    const parsed = JSON.parse(script.textContent);
+                    const type = Array.isArray(parsed['@type']) ? parsed['@type'].join(', ') : parsed['@type'];
+                    return { type: type || 'Sconosciuto', content: script.textContent };
+                } catch (e) {
+                    return { type: 'Errore Parsing', content: script.textContent };
+                }
+            });
 
-          const deleteHistoryItem = (id) => {
-              const updatedHistory = history.filter(item => item.id !== id);
-              setHistory(updatedHistory);
-              saveHistory(updatedHistory);
-          };
+            // Aggiunge dati di analisi locale
+            data.analyzedUrl = 'Analisi Codice Incollato';
+            data.timestamp = new Date().toISOString();
 
-          const loadFromHistory = (result) => {
-              setAnalysisResults([result]);
-              setUrls([result.url]);
-              setIsHistoryVisible(false);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-          };
+            return data;
+        }
 
-          const handleExportPdf = useCallback(() => {
-              if (!reportRef.current || !analysisResults || analysisResults.length !== 1) {
-                  alert("Please analyze a single URL to export a PDF report.");
-                  return;
-              }
+        function calculateScores(data) {
+            const scores = {
+                title: 0,
+                description: 0,
+                technical: 0,
+                social: 0,
+                general: 0
+            };
 
-              const result = analysisResults[0];
-              setIsLoading(true);
+            // Title Score (ottimale 30-70 caratteri)
+            const titleLen = data.title.length;
+            if (titleLen >= 30 && titleLen <= 70) scores.title = 100;
+            else if (titleLen > 0 && titleLen < 30) scores.title = 50;
+            else if (titleLen > 70 && titleLen <= 90) scores.title = 75;
+            else scores.title = 20;
+            
+            // Description Score (ottimale 120-160 caratteri)
+            const descLen = data.description.length;
+            if (descLen >= 120 && descLen <= 160) scores.description = 100;
+            else if (descLen > 0 && descLen < 120) scores.description = 60;
+            else if (descLen > 160 && descLen <= 200) scores.description = 70;
+            else scores.description = 10;
+            
+            // Technical Score (Canonical, Robots, Viewport, Charset)
+            let techScore = 0;
+            if (data.canonical && data.canonical.length > 0) { techScore += 25; }
+            if (data.robots !== 'N/A' && data.robots.toLowerCase().includes('index')) { techScore += 25; }
+            if (data.viewport !== 'N/A' && data.viewport.includes('width=device-width')) { techScore += 25; }
+            if (data.charset.toUpperCase() === 'UTF-8') { techScore += 25; }
+            scores.technical = Math.round(techScore);
+            
+            // Social Media Score (Open Graph & Twitter)
+            let socialScore = 0;
+            if (data.og_title && data.og_title.length > 0) { socialScore += 15; }
+            if (data.og_description && data.og_description.length > 0) { socialScore += 15; }
+            if (data.og_image && data.og_image.length > 0) { socialScore += 20; }
+            if (data.twitter_card && data.twitter_card.length > 0) { socialScore += 20; }
+            if (data.twitter_title && data.twitter_title.length > 0) { socialScore += 10; }
+            if (data.twitter_image && data.twitter_image.length > 0) { socialScore += 10; }
+            if (data.og_url && data.og_url.length > 0) { socialScore += 10; }
+            scores.social = Math.round(socialScore);
 
-              const { jsPDF } = window.jspdf;
-              const pdf = new jsPDF('p', 'mm', 'a4');
-              const reportElement = reportRef.current;
-              
-              window.html2canvas(reportElement, {
-                  scale: 2,
-                  backgroundColor: '#121212',
-                  useCORS: true,
-                  onclone: (document) => {
-                      document.querySelectorAll('*').forEach(el => {
-                          el.style.color = '#e5e7eb';
-                      });
-                  }
-              }).then(canvas => {
-                  const imgData = canvas.toDataURL('image/png');
-                  const imgProps = pdf.getImageProperties(imgData);
-                  const pdfWidth = pdf.internal.pageSize.getWidth();
-                  const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            // Punteggio Generale (Media ponderata)
+            scores.general = Math.round((scores.title * 0.25) + (scores.description * 0.25) + (scores.technical * 0.3) + (scores.social * 0.2));
 
-                  let heightLeft = pdfHeight;
-                  let position = 0;
-                  const pageHeight = pdf.internal.pageSize.getHeight();
+            data.scores = scores;
+            return data;
+        }
+        
+        // --- Rendering Functions ---
+        
+        function updateGlobalScore(score) {
+            const element = document.getElementById('global-score-display');
+            element.textContent = score;
+            let color = '';
+            if (score < 50) color = 'bg-red-500';
+            else if (score < 75) color = 'bg-yellow-500';
+            else color = 'bg-green-500';
+            element.className = 'score-circle ' + color;
+        }
 
-                  pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                  heightLeft -= pageHeight;
+        function renderScoreBreakdown(scores) {
+            const container = document.getElementById('score-breakdown');
+            container.innerHTML = '';
+            const scoreLabels = {
+                title: 'Title Score',
+                description: 'Description Score',
+                technical: 'Meta Tecnici Score',
+                social: 'Social Media Score',
+                general: 'Punteggio Generale',
+            };
 
-                  while (heightLeft >= 0) {
-                      position = heightLeft - pdfHeight;
-                      pdf.addPage();
-                      pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                      heightLeft -= pageHeight;
-                  }
+            Object.keys(scores).forEach(key => {
+                const score = scores[key];
+                const label = key === 'general' ? 'Punteggio Generale' : scoreLabels[key];
+                const color = score < 50 ? 'bg-red-500' : (score < 75 ? 'bg-yellow-500' : 'bg-green-500');
+                
+                const cardHtml = `
+                    <div class="p-4 bg-white rounded-xl shadow-lg border-b-4 ${key === 'general' ? 'border-indigo-600 col-span-2 md:col-span-1' : 'border-gray-300'} transition duration-300 hover:shadow-xl">
+                        <p class="text-sm font-medium text-gray-500">${label}</p>
+                        <div class="text-2xl font-extrabold mt-1 flex items-center">
+                            <span class="p-2 rounded-full text-white text-lg font-bold ${color} mr-3">${score}</span>
+                            <span class="${score >= 75 ? 'text-green-600' : (score >= 50 ? 'text-yellow-600' : 'text-red-600')}">${score} / 100</span>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += cardHtml;
+            });
+            updateGlobalScore(scores.general);
+        }
 
-                  pdf.save(`seo-report-${result.url.replace(/https?:\/\//, '').replace(/\//g, '_')}.pdf`);
-                  setIsLoading(false);
-              }).catch(err => {
-                  console.error("Error generating PDF:", err);
-                  alert("Failed to generate PDF report.");
-                  setIsLoading(false);
-              });
-          }, [analysisResults]);
+        function renderAnalysisTables(data) {
+            const container = document.getElementById('meta-results-tables');
+            container.innerHTML = '';
 
-          return (
-              <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-indigo-900/30 text-gray-200 p-4 md:p-8">
-                  <div className="max-w-7xl mx-auto">
-                      <Header 
-                          onHistoryClick={() => setIsHistoryVisible(true)} 
-                          onChecklistClick={() => setIsChecklistVisible(true)} 
-                          onExportPdf={handleExportPdf}
-                          isPdfExportable={!!analysisResults && analysisResults.length === 1}
-                      />
-                      <main className="mt-8">
-                          <UrlInputForm 
-                              urls={urls}
-                              setUrls={setUrls}
-                              onAnalyze={handleAnalyze} 
-                              isLoading={isLoading} 
-                          />
+            const fieldGroups = [
+                { title: 'Meta Tag Base (1)', dataKey: 'base', keys: ['title', 'description', 'keywords', 'canonical', 'robots', 'viewport', 'charset', 'author', 'lang', 'contentType'] },
+                { title: 'Open Graph (Facebook) (2)', dataKey: 'og', keys: ['og_title', 'og_description', 'og_image', 'og_url', 'og_type', 'og_site_name', 'og_locale'] },
+                { title: 'Twitter Cards (3)', dataKey: 'twitter', keys: ['twitter_card', 'twitter_title', 'twitter_description', 'twitter_image', 'twitter_site', 'twitter_creator'] }
+            ];
 
-                          {error && (
-                              <div className="mt-8 bg-red-900/50 border border-red-500 text-red-300 px-4 py-3 rounded-lg relative animate-fade-in" role="alert">
-                                  <strong className="font-bold">Error: </strong>
-                                  <span className="block sm:inline">{error}</span>
-                              </div>
-                          )}
+            const keyMap = {
+                title: 'Tag Title', description: 'Meta Description', canonical: 'URL Canonico', keywords: 'Meta Keywords', robots: 'Meta Robots', viewport: 'Viewport', charset: 'Charset', author: 'Author', lang: 'Language (lang)', contentType: 'Content-Type',
+                og_title: 'og:title', og_description: 'og:description', og_image: 'og:image', og_url: 'og:url', og_type: 'og:type', og_site_name: 'og:site_name', og_locale: 'og:locale',
+                twitter_card: 'twitter:card', twitter_title: 'twitter:title', twitter_description: 'twitter:description', twitter_image: 'twitter:image', twitter_site: 'twitter:site', twitter_creator: 'twitter:creator'
+            };
+            
+            fieldGroups.forEach(group => {
+                let tableHtml = `
+                    <h3 class="text-xl font-semibold text-gray-700 mt-8 mb-4 p-3 bg-indigo-50 rounded-lg">${group.title}</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border-collapse rounded-xl overflow-hidden shadow-md mb-8 min-w-[600px]">
+                            <thead>
+                                <tr class="bg-gray-200 text-gray-700">
+                                    <th class="p-3 w-1/4 text-left">Meta Tag</th>
+                                    <th class="p-3 w-3/4 text-left">Contenuto/Stato</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
 
-                          {isLoading && <Loader />}
-                          
-                          {!isLoading && !analysisResults && <WelcomeScreen onCardClick={(target) => { /* handle scroll/navigation */ }} />}
+                group.keys.forEach(key => {
+                    const value = data[key] || 'N/A';
+                    const displayName = keyMap[key] || key;
+                    const valueDisplay = value.length > 0 && value !== 'N/A' ? value : '<span class="italic text-yellow-600">Mancante / N/A</span>';
+                    
+                    let feedback = '';
+                    let copyBtn = '';
+                    if (key === 'title' || key === 'description') {
+                        const len = value.length;
+                        const optimal = key === 'title' ? [30, 70] : [120, 160];
+                        
+                        if (len > optimal[1]) { feedback = `❌ Troppo lungo (${len} car.)`; }
+                        else if (len > 0 && len < optimal[0]) { feedback = `⚠️ Troppo corto (${len} car.)`; }
+                        else if (len === 0) { feedback = `❌ Mancante`; }
+                        else { feedback = `✅ Ottimale (${len} car.)`; }
+                        
+                        copyBtn = `<button onclick="copyToClipboard('${value}', this)" class="ml-2 text-sm text-indigo-500 hover:text-indigo-700">📋 Copia</button>`;
+                    } else if (key.includes('image') && value.length > 0) {
+                        feedback = `✅ Immagine Trovata`;
+                    } else if (value.length > 0 && value !== 'N/A') {
+                        feedback = '✅ Presente';
+                    } else {
+                        feedback = '⚠️ Mancante';
+                    }
 
-                          {!isLoading && analysisResults && (
-                              <div ref={reportRef} className="p-4 bg-gray-900 rounded-lg">
-                                {analysisResults.length === 1 ? (
-                                      <AnalysisDashboard result={analysisResults[0]} />
-                                ) : (
-                                      <ComparisonTable results={analysisResults} />
-                                )}
-                              </div>
-                          )}
-                      </main>
+                    tableHtml += `
+                        <tr class="border-t hover:bg-gray-50">
+                            <td class="p-3 font-medium text-gray-800">${displayName}</td>
+                            <td class="p-3 break-all text-sm flex items-center justify-between">
+                                <span class="flex-grow">${valueDisplay}</span>
+                                <span class="ml-3 text-xs font-semibold ${feedback.startsWith('✅') ? 'text-green-600' : (feedback.startsWith('❌') ? 'text-red-600' : 'text-yellow-600')} flex-shrink-0">
+                                    (${feedback})
+                                </span>
+                                ${copyBtn}
+                            </td>
+                        </tr>
+                    `;
+                });
 
-                      <HistoryModal 
-                          isVisible={isHistoryVisible}
-                          onClose={() => setIsHistoryVisible(false)}
-                          history={history}
-                          onLoad={loadFromHistory}
-                          onDelete={deleteHistoryItem}
-                          onClear={clearHistory}
-                      />
+                tableHtml += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+                container.innerHTML += tableHtml;
+            });
+        }
+        
+        function renderSerpPreview(data) {
+            const MAX_TITLE = 60; 
+            const MAX_DESC = 160; 
+            
+            const title = data.title;
+            const description = data.description;
+            
+            const serpTitle = title.length > MAX_TITLE ? title.substring(0, MAX_TITLE) + '...' : title;
+            const serpDescription = description.length > MAX_DESC ? description.substring(0, MAX_DESC) + '...' : description;
 
-                      <ChecklistModal
-                          isVisible={isChecklistVisible}
-                          onClose={() => setIsChecklistVisible(false)}
-                          analysisResult={analysisResults?.[0]}
-                      />
-                  </div>
-              </div>
-          );
-      };
-      // END: App.tsx
+            document.getElementById('serp-title').textContent = serpTitle || 'Titolo Mancante';
+            document.getElementById('serp-description').textContent = serpDescription || 'Descrizione Mancante o Troppo Corta';
+            
+            document.getElementById('title-char-count').innerHTML = `<strong>Title:</strong> ${title.length} caratteri (Ottimale: 30-70).`;
+            document.getElementById('desc-char-count').innerHTML = `<strong>Description:</strong> ${description.length} caratteri (Ottimale: 120-160).`;
+        }
+        
+        function renderSocialPreview(data) {
+            const facebookContainer = document.getElementById('facebook-preview');
+            const twitterContainer = document.getElementById('twitter-preview');
+            const linkedinContainer = document.getElementById('linkedin-preview');
 
-      // START: index.tsx
-      const initializeApp = () => {
-          const rootElement = document.getElementById('root');
-          if (!rootElement) {
-              console.error("SEO Analyzer PRO: Root element not found. Retrying...");
-              // This retry is a fallback for dynamic environments like page builders
-              setTimeout(initializeApp, 100);
-              return;
-          }
-          const root = ReactDOM.createRoot(rootElement);
-          root.render(
-            <React.StrictMode>
-              <App />
-            </React.StrictMode>
-          );
-      };
+            if (!facebookContainer || !twitterContainer || !linkedinContainer) {
+                console.error("Errore: Impossibile trovare i container per l'Anteprima Sociale.");
+                return;
+            }
+            
+            const mockUrl = 'https://mock-analysis-site.com/pasted-content';
+            const mockSite = 'Analisi HTML';
 
-      if (document.readyState === 'loading') {
-        // Loading hasn't finished yet
-        document.addEventListener('DOMContentLoaded', initializeApp);
-      } else {
-        // `DOMContentLoaded` has already fired
-        initializeApp();
-      }
-      // END: index.tsx
+            facebookContainer.innerHTML = createSocialCard('Facebook (Open Graph)', 'facebook-style', data.og_title, data.og_description, data.og_image, mockUrl, data.og_site_name || mockSite, data);
+            twitterContainer.innerHTML = createSocialCard('Twitter (Card)', 'twitter-style', data.twitter_title || data.og_title, data.twitter_description || data.og_description, data.twitter_image || data.og_image, mockUrl, data.twitter_site || mockSite, data);
+            linkedinContainer.innerHTML = createSocialCard('LinkedIn (Open Graph)', 'linkedin-style', data.og_title, data.og_description, data.og_image, mockUrl, data.og_site_name || mockSite, data);
+        }
+
+        function createSocialCard(platform, styleClass, title, description, imageUrl, url, siteName, data) {
+            
+            const displayTitle = title && title.length > 0 ? title : data.title || 'Titolo Generale Mancante';
+            const displayDesc = description && description.length > 0 ? description : data.description || 'Descrizione Generale Mancante';
+            const displaySite = siteName || 'Analisi Sorgente';
+            
+            const imageFound = imageUrl && imageUrl.length > 0;
+            const imageText = imageFound ? 'Anteprima Img OG/Twitter Trovata (Non caricata)' : 'Nessuna Immagine OG/Twitter Trovata';
+            const displayImage = `<div class="social-img w-full bg-indigo-50 border-b border-indigo-200">${imageText}</div>`;
+
+            let statusBadge = '';
+            const isOgTwitterPresent = (title && title.length > 0) || (description && description.length > 0) || imageFound;
+            
+            if (isOgTwitterPresent) {
+                statusBadge = '<span class="text-sm font-bold text-green-600">✅ Tag Social Dedicati Trovati</span>';
+            } else if (data.title.length > 0 && data.description.length > 0) { 
+                statusBadge = '<span class="text-sm font-bold text-yellow-600">⚠️ Usando Title/Description Base (Tag Social Mancanti)</span>';
+            } else {
+                statusBadge = '<span class="text-sm font-bold text-red-600">❌ Dati Social Critici Mancanti</span>';
+            }
+
+            return `
+                <div>
+                    <h4 class="font-bold text-lg mb-2 text-gray-700">${platform} Card</h4>
+                    <div class="mb-3">${statusBadge}</div>
+                    <div class="social-card ${styleClass}">
+                        ${displayImage}
+                        <div class="social-body">
+                            <p class="social-site">${displaySite}</p>
+                            <p class="social-title mt-1">${truncateString(displayTitle, 80)}</p>
+                            <p class="social-description mt-1">${truncateString(displayDesc, 120)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderStructuredData(data) {
+            const container = document.getElementById('structured-data-output');
+            
+            if (data.json_ld.length === 0) {
+                container.innerHTML = '<p class="text-gray-500">Nessun dato strutturato JSON-LD trovato. ⚠️</p>';
+                return;
+            }
+
+            let html = '<p class="text-green-600 font-medium mb-3">✅ Trovati ' + data.json_ld.length + ' blocchi JSON-LD:</p>';
+            data.json_ld.forEach((item, index) => {
+                const badgeColor = item.type.includes('Errore') ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800';
+                html += `
+                    <div class="mb-4 p-3 border rounded-lg">
+                        <span class="inline-block px-2 py-1 text-xs font-semibold rounded-full ${badgeColor}">${item.type}</span>
+                        <pre class="whitespace-pre-wrap mt-2 p-2 bg-white rounded-md border text-xs">${truncateString(item.content, 500)}</pre>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderKeywordAnalysis(data) {
+            const titleWords = (data.title || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+            const descWords = (data.description || '').toLowerCase().split(/\s+/).filter(w => w.length > 3);
+            const allWords = [...titleWords, ...descWords];
+            const totalWords = allWords.length;
+
+            const frequencyMap = allWords.reduce((acc, word) => {
+                acc[word] = (acc[word] || 0) + 1;
+                return acc;
+            }, {});
+
+            const sortedKeywords = Object.entries(frequencyMap)
+                .sort(([, a], [, b]) => b - a)
+                .slice(0, 10); 
+
+            const keywordList = document.getElementById('keyword-list');
+            keywordList.innerHTML = sortedKeywords.map(([word, count]) => {
+                const density = totalWords > 0 ? (count / totalWords * 100).toFixed(2) : 0;
+                return `<li class="hover:bg-gray-100 p-1 rounded">
+                            <span class="font-bold text-indigo-700">${word}</span>: ${count} occorrenze (<span class="${density > 3 ? 'text-red-500' : 'text-green-600'}">${density}%</span> densità)
+                        </li>`;
+            }).join('');
+            
+            const densityStats = document.getElementById('density-stats');
+            densityStats.innerHTML = `
+                <p>Parole totali analizzate (Title & Desc): <span class="font-bold">${totalWords}</span></p>
+                <p>Keyword uniche: <span class="font-bold">${Object.keys(frequencyMap).length}</span></p>
+                <p class="mt-2 text-sm text-gray-600">
+                    Suggerimento: Una densità ideale si aggira tra l'1% e il 3%.
+                </p>
+            `;
+        }
+
+        function renderRecommendations(data) {
+            const container = document.getElementById('recommendations-list');
+            container.innerHTML = '';
+            const scores = data.scores;
+            let recommendations = [];
+
+            const addRec = (type, title, description) => {
+                recommendations.push({ type, title, description });
+            };
+
+            // 1. Raccomandazioni basate sui punteggi
+            if (scores.title < 75) {
+                addRec('⚠️ Warning', 'Migliora il Title Tag', `Il punteggio del titolo è basso (${scores.title}/100). Lunghezza attuale: ${data.title.length}. Obiettivo: 30-70 caratteri.`);
+            } else if (scores.title < 100 && scores.title >= 75) {
+                 addRec('💡 Suggerimento', 'Title Tag Quasi Perfetto', `Ottimo lavoro! Considera la lunghezza per evitare il troncamento in SERP (max 60 car. visuali).`);
+            }
+            if (scores.description < 75) {
+                addRec('❌ Errore critico', 'Rivedi la Meta Description', `Il punteggio della descrizione è critico (${scores.description}/100). Lunghezza attuale: ${data.description.length}. Obiettivo: 120-160 caratteri. Una buona descrizione aumenta il CTR.`);
+            }
+            if (scores.social < 75) {
+                addRec('⚠️ Warning', 'Ottimizza i Meta Tag Social', `I tag Open Graph (Facebook) e Twitter sono incompleti. Assicurati che 'og:title', 'og:description' e 'og:image' siano presenti per migliorare la condivisione.`);
+            }
+            if (!data.canonical || data.canonical.length === 0) {
+                 addRec('❌ Errore critico', 'URL Canonico Mancante', `L'URL canonico è fondamentale per prevenire problemi di contenuto duplicato. Aggiungi il tag <link rel="canonical">.`);
+            }
+
+            // 2. Raccomandazioni basate sui dati strutturati
+            if (data.json_ld.length === 0) {
+                addRec('❌ Errore critico', 'Dati Strutturati Mancanti', 'Implementa i dati strutturati (JSON-LD) per il tuo tipo di contenuto (es. Article, Product, Organization) per migliorare i rich snippet in SERP.');
+            }
+            
+            // 3. Feedback positivo
+            if (scores.general > 80) {
+                addRec('✅ Feedback positivo', 'Analisi Generale Ottima', `Il punteggio generale di ${scores.general}/100 è eccellente! Continua a monitorare e affina i dettagli.`);
+            }
+            
+            // Render
+            recommendations.forEach(rec => {
+                const color = rec.type.includes('positivo') ? 'border-green-500' : (rec.type.includes('critico') ? 'border-red-500' : 'border-yellow-500');
+                const icon = rec.type.includes('positivo') ? '✅' : (rec.type.includes('critico') ? '❌' : '⚠️');
+                const titleColor = rec.type.includes('critico') ? 'text-red-700' : 'text-gray-800';
+                
+                container.innerHTML += `
+                    <div class="p-4 bg-white rounded-xl shadow border-l-4 ${color}">
+                        <p class="font-bold ${titleColor} mb-1">${icon} ${rec.title}</p>
+                        <p class="text-sm text-gray-600">${rec.description}</p>
+                    </div>
+                `;
+            });
+        }
+
+        // --- Storico & Grafici Nativi Leggeri ---
+
+        function getHistory() {
+            try {
+                const history = localStorage.getItem(HISTORY_KEY);
+                return history ? JSON.parse(history) : [];
+            } catch (e) {
+                console.error("Errore lettura storico da LocalStorage:", e);
+                return [];
+            }
+        }
+
+        function saveHistory(data) {
+            const history = getHistory();
+            const newEntry = {
+                url: data.analyzedUrl,
+                timestamp: data.timestamp,
+                scores: data.scores,
+                title: data.title,
+                description: data.description,
+                og_image: data.og_image,
+                json_ld_count: data.json_ld.length,
+            };
+            // Limita a 5 elementi per semplicità di visualizzazione
+            history.unshift(newEntry);
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, 5)));
+        }
+
+        function renderHistoryTab() {
+            const history = getHistory();
+            const listContainer = document.getElementById('history-list');
+            listContainer.innerHTML = '';
+
+            if (history.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-500 italic">Nessuna analisi salvata nello storico.</p>';
+                document.getElementById('categoryComparisonChart').innerHTML = '<p class="text-gray-500">Esegui un\'analisi per visualizzare il grafico.</p>';
+                document.getElementById('scoreEvolutionChart').innerHTML = '<p class="text-gray-500">Esegui analisi multiple per visualizzare l\'evoluzione.</p>';
+                return;
+            }
+
+            // Renderizza la lista
+            history.forEach((entry, index) => {
+                const date = new Date(entry.timestamp).toLocaleString('it-IT');
+                const color = entry.scores.general < 50 ? 'bg-red-100' : (entry.scores.general < 75 ? 'bg-yellow-100' : 'bg-green-100');
+                listContainer.innerHTML += `
+                    <div class="p-3 ${color} rounded-lg shadow-sm flex justify-between items-center text-sm">
+                        <span class="font-medium">${date} | ${truncateString(entry.title, 40)}</span>
+                        <div class="flex items-center space-x-3">
+                            <span class="font-bold text-gray-700">Score: ${entry.scores.general}</span>
+                            <button onclick="deleteHistoryEntry(${index})" class="text-red-500 hover:text-red-700">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Renderizza i grafici nativi
+            renderNativeCharts(history);
+        }
+        
+        function deleteHistoryEntry(index) {
+            let history = getHistory();
+            history.splice(index, 1);
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            renderHistoryTab(); // Ricarica la lista e i grafici
+        }
+
+        function getBarColor(score) {
+            if (score < 50) return 'bg-red-500';
+            if (score < 75) return 'bg-yellow-500';
+            return 'bg-green-500';
+        }
+
+        // Funzione di rendering per i grafici NATIVI (sostituisce Chart.js)
+        function renderNativeCharts(history) {
+            if (!history || history.length === 0) return;
+
+            // 1. Grafico Confronto Categorie (Bar Chart - Ultima Analisi)
+            const latestScores = history[0].scores;
+            const comparisonContainer = document.getElementById('categoryComparisonChart');
+            
+            const categoryLabels = {
+                title: 'Title',
+                description: 'Desc.',
+                technical: 'Tecnici',
+                social: 'Social'
+            };
+
+            let comparisonHtml = '';
+            
+            Object.keys(categoryLabels).forEach(key => {
+                const score = latestScores[key];
+                const colorClass = getBarColor(score);
+                comparisonHtml += `
+                    <div class="bar-wrapper">
+                        <div class="bar-label">${categoryLabels[key]}</div>
+                        <div class="bar-track">
+                            <div class="bar-fill ${colorClass}" style="width: ${score}%;"></div>
+                        </div>
+                        <span class="ml-2 text-sm font-bold text-gray-800">${score}%</span>
+                    </div>
+                `;
+            });
+            comparisonContainer.innerHTML = comparisonHtml;
+
+
+            // 2. Grafico Evoluzione Score (Timeline Semplice)
+            const evolutionContainer = document.getElementById('scoreEvolutionChart');
+            const evolutionHistory = history.slice().reverse(); 
+            
+            let evolutionHtml = `
+                <div class="flex flex-col space-y-3">
+                    ${evolutionHistory.map(entry => {
+                        const score = entry.scores.general;
+                        const colorClass = getBarColor(score);
+                        const date = new Date(entry.timestamp).toLocaleDateString('it-IT');
+                        
+                        return `
+                            <div class="flex items-center space-x-3 p-2 border-b">
+                                <span class="text-xs text-gray-500 w-16">${date}</span>
+                                <div class="bar-track flex-grow h-3">
+                                    <div class="bar-fill ${colorClass}" style="width: ${score}%;"></div>
+                                </div>
+                                <span class="text-sm font-bold text-gray-800 w-8">${score}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            evolutionContainer.innerHTML = evolutionHtml;
+        }
+        
+        // --- Checklist SEO ---
+        
+        const CHECKLIST_ITEMS = [
+            { id: 'c1', category: 'Meta Tag Base', text: 'Il Tag Title è compreso tra 30 e 70 caratteri.', check: (d) => d.title.length >= 30 && d.title.length <= 70 },
+            { id: 'c2', category: 'Meta Tag Base', text: 'La Meta Description è compresa tra 120 e 160 caratteri.', check: (d) => d.description.length >= 120 && d.description.length <= 160 },
+            { id: 'c3', category: 'Tecnici', text: 'È presente il tag canonical URL.', check: (d) => d.canonical && d.canonical.length > 0 },
+            { id: 'c4', category: 'Tecnici', text: 'Il meta robots è impostato su index, follow.', check: (d) => d.robots.toLowerCase().includes('index') && d.robots.toLowerCase().includes('follow') },
+            { id: 'c5', category: 'Tecnici', text: 'È presente il meta viewport per la responsività mobile.', check: (d) => d.viewport.includes('width=device-width') },
+            { id: 'c6', category: 'Social Media', text: 'È presente og:image.', check: (d) => d.og_image && d.og_image.length > 0 },
+            { id: 'c7', category: 'Social Media', text: 'È presente twitter:card.', check: (d) => d.twitter_card && d.twitter_card.length > 0 },
+            { id: 'c8', category: 'Strutturati', text: 'Sono presenti dati strutturati (JSON-LD).', check: (d) => d.json_ld.length > 0 },
+        ];
+
+        function loadChecklistState() {
+            try {
+                const state = localStorage.getItem(CHECKLIST_KEY);
+                return state ? JSON.parse(state) : {};
+            } catch (e) { return {}; }
+        }
+
+        function saveChecklistState(state) {
+            localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state));
+        }
+
+        function renderChecklist(analysisData = null) {
+            const container = document.getElementById('checklist-container');
+            let html = '';
+            // Ottimizzazione: lo stato viene caricato solo al momento del rendering
+            const state = loadChecklistState(); 
+            let checkedCount = 0;
+            const totalItems = CHECKLIST_ITEMS.length;
+            
+            CHECKLIST_ITEMS.forEach(item => {
+                const isChecked = state[item.id] || false;
+                const automaticCheck = analysisData ? item.check(analysisData) : null;
+
+                if (isChecked) checkedCount++;
+
+                let checkIcon = '◻️';
+                let checkColor = 'text-gray-500';
+
+                if (automaticCheck === true) {
+                    checkIcon = '✅';
+                    checkColor = 'text-green-600';
+                } else if (automaticCheck === false) {
+                     checkIcon = '❌';
+                     checkColor = 'text-red-600';
+                }
+                
+                html += `
+                    <div class="flex items-center p-3 bg-white rounded-lg shadow-sm justify-between hover:bg-gray-50">
+                        <label class="flex items-center cursor-pointer flex-grow">
+                            <input type="checkbox" id="check-${item.id}" ${isChecked ? 'checked' : ''} onchange="toggleChecklistItem('${item.id}')" class="w-4 h-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500">
+                            <span class="ml-3 text-sm font-medium text-gray-700">${item.text}</span>
+                        </label>
+                        <span class="text-xs font-semibold ${checkColor} ml-4 flex-shrink-0">${item.category} <span class="ml-2">${checkIcon}</span></span>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = `
+                <div class="mb-4">
+                    <div id="progress-bar-container" class="h-4 bg-gray-200 rounded-full">
+                        <div id="progress-bar" class="h-4 bg-green-500 rounded-full transition-all duration-500" style="width: 0%;"></div>
+                    </div>
+                    <p id="progress-text" class="text-right text-sm mt-1 text-green-700 font-medium">0% Completato</p>
+                </div>
+            ` + html;
+
+            updateProgress(checkedCount, totalItems);
+        }
+
+        function toggleChecklistItem(id) {
+            const state = loadChecklistState();
+            state[id] = !state[id];
+            saveChecklistState(state);
+            
+            const checkbox = document.getElementById(`check-${id}`);
+            if (checkbox) {
+                 let checkedCount = 0;
+                 CHECKLIST_ITEMS.forEach(item => {
+                     if (loadChecklistState()[item.id]) checkedCount++;
+                 });
+                 updateProgress(checkedCount, CHECKLIST_ITEMS.length);
+            }
+        }
+        
+        function updateProgress(checkedCount, totalItems) {
+            const percentage = totalItems > 0 ? Math.round((checkedCount / totalItems) * 100) : 0;
+            document.getElementById('progress-bar').style.width = `${percentage}%`;
+            document.getElementById('progress-text').textContent = `${percentage}% Completato`;
+        }
+
+        // --- Utility Functions ---
+        
+        function checkInputLength(event) {
+            const value = event.target.value.trim();
+            const analyzeButton = document.getElementById('analyze-button');
+            if (value.length >= 100) {
+                analyzeButton.disabled = false;
+            } else {
+                analyzeButton.disabled = true;
+            }
+        }
+
+        function changeTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+            
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active'); 
+                btn.classList.add('text-gray-300', 'hover:text-white');
+            });
+            
+            const activeTab = document.getElementById(`tab-${tabId}`);
+            const activeButton = document.querySelector(`[data-tab="${tabId}"]`);
+            
+            if (activeTab) activeTab.classList.remove('hidden');
+            
+            if (activeButton) {
+                activeButton.classList.add('active'); 
+                activeButton.classList.remove('text-gray-300', 'hover:text-white');
+            }
+
+            if (tabId === 'history') {
+                renderHistoryTab(); 
+            }
+        }
+        
+        function scrollToTab(tabId) {
+            changeTab(tabId);
+            const container = document.getElementById('results-container');
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function truncateString(str, num) {
+            if (!str) return '';
+            if (str.length <= num) {
+                return str;
+            }
+            return str.slice(0, num) + '...';
+        }
+        
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copiato! ✅';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 2000);
+            }).catch(err => {
+                console.error('Errore copia:', err);
+                // Fallback per Elementor
+                showCustomMessage('Copia Fallita', 'Per Elementor, la copia potrebbe non funzionare per restrizioni di sicurezza. Copia manualmente il testo.');
+            });
+        }
+        
+        // --- Export PDF ---
+
+        function exportToPdf() {
+            if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined') {
+                showCustomMessage('Attenzione', 'La libreria PDF (jsPDF) non è ancora stata caricata. Riprova tra qualche istante.');
+                return;
+            }
+
+            const history = getHistory();
+            
+            if (history.length === 0 || !history[0]) {
+                 showCustomMessage('Attenzione', 'Esegui prima un\'analisi incollando il codice HTML sorgente per poter generare il report PDF.');
+                 return;
+            }
+            
+            const data = history[0]; 
+            const doc = new window.jspdf.jsPDF();
+            let y = 15;
+            
+            doc.setFontSize(22);
+            doc.text("Report Analisi SEO", 10, y);
+            y += 10;
+            
+            doc.setFontSize(10);
+            doc.text(`Sorgente: ${data.analyzedUrl}`, 10, y);
+            y += 5;
+            doc.text(`Data: ${new Date(data.timestamp).toLocaleString('it-IT')}`, 10, y);
+            y += 10;
+
+            doc.setFontSize(16);
+            doc.text("Punteggi Globali", 10, y);
+            y += 8;
+
+            doc.setFontSize(12);
+            const scores = data.scores || {};
+            doc.text(`Punteggio Generale: ${scores.general || 'N/A'}/100`, 10, y);
+            doc.text(`Title Score: ${scores.title || 'N/A'}/100`, 100, y);
+            y += 5;
+            doc.text(`Description Score: ${scores.description || 'N/A'}/100`, 10, y);
+            doc.text(`Social Score: ${scores.social || 'N/A'}/100`, 100, y);
+            y += 10;
+            
+            // Raccomandazioni (simulazione)
+            doc.setFontSize(16);
+            doc.text("Top Raccomandazioni", 10, y);
+            y += 8;
+            
+            doc.setFontSize(10);
+            const titleLen = data.title?.length || 0;
+            const descLen = data.description?.length || 0;
+            const canonicalPresent = data.canonical && data.canonical.length > 0;
+            const ogImagePresent = data.og_image && data.og_image.length > 0;
+            const jsonLdCount = data.json_ld_count || 0;
+
+            doc.text(`1. Title Tag: ${titleLen > 70 ? '❌ Troppo Lungo' : '✅ OK'} (${titleLen} car.)`, 10, y);
+            y += 5;
+            doc.text(`2. Meta Description: ${descLen > 160 ? '❌ Troppo Lunga' : (descLen < 120 ? '⚠️ Troppo Corta' : '✅ OK')} (${descLen} car.)`, 10, y);
+            y += 5;
+            doc.text(`3. URL Canonico: ${canonicalPresent ? '✅ Presente' : '❌ Mancante'}`, 10, y);
+            y += 5;
+            doc.text(`4. OG Image: ${ogImagePresent ? '✅ Presente' : '⚠️ Mancante'}`, 10, y);
+            y += 5;
+            doc.text(`5. Dati Strutturati: ${jsonLdCount > 0 ? `✅ Trovati (${jsonLdCount})` : '❌ Mancanti'}`, 10, y);
+            y += 10;
+
+            // Dati base
+            doc.setFontSize(16);
+            doc.text("Dati Estratti", 10, y);
+            y += 8;
+            doc.setFontSize(10);
+            doc.text(`Title: ${truncateString(data.title || 'N/A', 90)}`, 10, y);
+            y += 5;
+            doc.text(`Description: ${truncateString(data.description || 'N/A', 90)}`, 10, y);
+            y += 10;
+
+            doc.save(`Report_SEO_Analisi_Incollata.pdf`);
+        }
+
+        window.exportToPdf = exportToPdf;
+        
+        // Funzione Modale/Messaggio personalizzata
+        function showCustomMessage(title, message) {
+            console.warn(`[MESSAGGIO: ${title}] ${message}`);
+             const errorElement = document.getElementById('error-message');
+             if (errorElement) {
+                errorElement.textContent = `${title}: ${message}`;
+                errorElement.classList.remove('hidden');
+                // Uso un piccolo timeout per non nascondere subito il messaggio
+                setTimeout(() => errorElement.classList.add('hidden'), 5000); 
+            }
+        }
+
+        // --- Main Controller ---
+
+        function analyzeHtml() {
+            const htmlInput = document.getElementById('html-input');
+            const html = htmlInput.value.trim();
+            const analyzeButton = document.getElementById('analyze-button');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const resultsContainer = document.getElementById('results-container');
+            const errorElement = document.getElementById('error-message');
+            const analyzedUrlDisplay = document.getElementById('analyzed-url-display');
+
+            // 1. Validazione e UI Reset
+            resultsContainer.classList.add('hidden');
+            errorElement.classList.add('hidden');
+            errorElement.textContent = '';
+            
+            if (!html || html.length < 100) {
+                errorElement.textContent = "Per favore, incolla il codice sorgente HTML completo (deve essere più lungo di 100 caratteri).";
+                errorElement.classList.remove('hidden');
+                return;
+            }
+
+            // Disabilita il pulsante e mostra il caricamento
+            analyzeButton.disabled = true;
+            loadingIndicator.classList.remove('hidden');
+            analyzedUrlDisplay.textContent = `Sorgente Analizzata: Codice HTML Incollato`;
+
+            // L'analisi è sincrona - la lentezza qui è un limite del browser su HTML gigantesco.
+            try {
+                // 2. Parsa e Calcola
+                let data = parseHtml(html);
+                data = calculateScores(data);
+
+                // 3. Salva e Renderizza
+                saveHistory(data);
+
+                // Renderizza tutti i componenti
+                renderScoreBreakdown(data.scores);
+                renderAnalysisTables(data);
+                renderSerpPreview(data);
+                renderSocialPreview(data);
+                renderStructuredData(data);
+                renderKeywordAnalysis(data);
+                renderRecommendations(data);
+                renderChecklist(data); 
+                
+                resultsContainer.classList.remove('hidden');
+                changeTab('analysis');
+                // Scrolla ai risultati
+                resultsContainer.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                console.error("Errore durante l'analisi HTML:", error);
+                errorElement.textContent = `Si è verificato un errore durante il parsing dell'HTML: ${error.message}. Assicurati che il codice sia ben formato.`;
+                errorElement.classList.remove('hidden');
+            } finally {
+                // Riabilita il pulsante e nasconde il caricamento
+                analyzeButton.disabled = false;
+                loadingIndicator.classList.add('hidden');
+            }
+        }
+
+        // Funzione di inizializzazione
+        document.addEventListener('DOMContentLoaded', function() {
+             window.analyzeHtml = analyzeHtml;
+             window.deleteHistoryEntry = deleteHistoryEntry;
+             window.toggleChecklistItem = toggleChecklistItem;
+             window.scrollToTab = scrollToTab;
+             
+             // Aggiunge l'event listener per abilitare il pulsante in modo robusto
+             const htmlInput = document.getElementById('html-input');
+             if (htmlInput) {
+                 htmlInput.addEventListener('input', checkInputLength);
+                 
+                 // Assicura che il pulsante sia nello stato corretto all'inizio
+                 checkInputLength({ target: htmlInput });
+             }
+
+             // Inizializza la checklist e lo storico
+             renderChecklist();
+             renderHistoryTab(); 
+        });
+
     </script>
-  </body>
+</body>
 </html>
